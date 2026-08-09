@@ -29,23 +29,15 @@ flex: 0 0 auto;
 }
 </style>
 <script>(function() {
-  // If window.HTMLWidgets is already defined, then use it; otherwise create a
-  // new object. This allows preceding code to set options that affect the
-  // initialization process (though none currently exist).
+
   window.HTMLWidgets = window.HTMLWidgets || {};
 
-  // See if we're running in a viewer pane. If not, we're in a web browser.
   var viewerMode = window.HTMLWidgets.viewerMode =
       /\bviewer_pane=1\b/.test(window.location);
 
-  // See if we're running in Shiny mode. If not, it's a static document.
-  // Note that static widgets can appear in both Shiny and static modes, but
-  // obviously, Shiny widgets can only appear in Shiny apps/documents.
   var shinyMode = window.HTMLWidgets.shinyMode =
       typeof(window.Shiny) !== "undefined" && !!window.Shiny.outputBindings;
 
-  // We can't count on jQuery being available, so we implement our own
-  // version if necessary.
   function querySelectorAll(scope, selector) {
     if (typeof(jQuery) !== "undefined" && scope instanceof jQuery) {
       return scope.find(selector);
@@ -63,7 +55,6 @@ flex: 0 0 auto;
     return [value];
   }
 
-  // Implement jQuery's extend
   function extend(target /*, ... */) {
     if (arguments.length == 1) {
       return target;
@@ -79,7 +70,6 @@ flex: 0 0 auto;
     return target;
   }
 
-  // IE8 doesn't support Array.forEach.
   function forEach(values, callback, thisArg) {
     if (values.forEach) {
       values.forEach(callback, thisArg);
@@ -90,13 +80,6 @@ flex: 0 0 auto;
     }
   }
 
-  // Replaces the specified method with the return value of funcSource.
-  //
-  // Note that funcSource should not BE the new method, it should be a function
-  // that RETURNS the new method. funcSource receives a single argument that is
-  // the overridden method, it can be called from the new method. The overridden
-  // method can be called like a regular function, it has the target permanently
-  // bound to it so "this" will work correctly.
   function overrideMethod(target, methodName, funcSource) {
     var superFunc = target[methodName] || function() {};
     var superFuncBound = function() {
@@ -105,34 +88,12 @@ flex: 0 0 auto;
     target[methodName] = funcSource(superFuncBound);
   }
 
-  // Add a method to delegator that, when invoked, calls
-  // delegatee.methodName. If there is no such method on
-  // the delegatee, but there was one on delegator before
-  // delegateMethod was called, then the original version
-  // is invoked instead.
-  // For example:
-  //
-  // var a = {
-  //   method1: function() { console.log('a1'); }
-  //   method2: function() { console.log('a2'); }
-  // };
-  // var b = {
-  //   method1: function() { console.log('b1'); }
-  // };
-  // delegateMethod(a, b, "method1");
-  // delegateMethod(a, b, "method2");
-  // a.method1();
-  // a.method2();
-  //
-  // The output would be "b1", "a2".
   function delegateMethod(delegator, delegatee, methodName) {
     var inherited = delegator[methodName];
     delegator[methodName] = function() {
       var target = delegatee;
       var method = delegatee[methodName];
 
-      // The method doesn't exist on the delegatee. Instead,
-      // call the method on the delegator, if it exists.
       if (!method) {
         target = delegator;
         method = inherited;
@@ -144,7 +105,6 @@ flex: 0 0 auto;
     };
   }
 
-  // Implement a vague facsimilie of jQuery's data method
   function elementData(el, name, value) {
     if (arguments.length == 2) {
       return el["htmlwidget_data_" + name];
@@ -157,7 +117,6 @@ flex: 0 0 auto;
     }
   }
 
-  // http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
   function escapeRegExp(str) {
     return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
   }
@@ -167,10 +126,6 @@ flex: 0 0 auto;
     return re.test(el.className);
   }
 
-  // elements - array (or array-like object) of HTML elements
-  // className - class name to test for
-  // include - if true, only return elements with given className;
-  //   if false, only return elements *without* given className
   function filterByClass(elements, className, include) {
     var results = [];
     for (var i = 0; i < elements.length; i++) {
@@ -196,9 +151,6 @@ flex: 0 0 auto;
     }
   }
 
-  // Translate array of values to top/right/bottom/left, as usual with
-  // the "padding" CSS property
-  // https://developer.mozilla.org/en-US/docs/Web/CSS/padding
   function unpackPadding(value) {
     if (typeof(value) === "number")
       value = [value];
@@ -216,12 +168,10 @@ flex: 0 0 auto;
     }
   }
 
-  // Convert an unpacked padding object to a CSS value
   function paddingToCss(paddingObj) {
     return paddingObj.top + "px " + paddingObj.right + "px " + paddingObj.bottom + "px " + paddingObj.left + "px";
   }
 
-  // Makes a number suitable for CSS
   function px(x) {
     if (typeof(x) === "number")
       return x + "px";
@@ -229,9 +179,6 @@ flex: 0 0 auto;
       return x;
   }
 
-  // Retrieves runtime widget sizing information for an element.
-  // The return value is either null, or an object with fill, padding,
-  // defaultWidth, defaultHeight fields.
   function sizingPolicy(el) {
     var sizingEl = document.querySelector("script[data-for='" + el.id + "'][type='application/htmlwidget-sizing']");
     if (!sizingEl)
@@ -244,17 +191,6 @@ flex: 0 0 auto;
     }
   }
 
-  // @param tasks Array of strings (or falsy value, in which case no-op).
-  //   Each element must be a valid JavaScript expression that yields a
-  //   function. Or, can be an array of objects with "code" and "data"
-  //   properties; in this case, the "code" property should be a string
-  //   of JS that's an expr that yields a function, and "data" should be
-  //   an object that will be added as an additional argument when that
-  //   function is called.
-  // @param target The object that will be "this" for each function
-  //   execution.
-  // @param args Array of arguments to be passed to the functions. (The
-  //   same arguments will be passed to all functions.)
   function evalAndRun(tasks, target, args) {
     if (tasks) {
       forEach(tasks, function(task) {
@@ -272,10 +208,6 @@ flex: 0 0 auto;
     }
   }
 
-  // Attempt eval() both with and without enclosing in parentheses.
-  // Note that enclosing coerces a function declaration into
-  // an expression that eval() can parse
-  // (otherwise, a SyntaxError is thrown)
   function tryEval(code) {
     var result = null;
     try {
@@ -342,7 +274,6 @@ flex: 0 0 auto;
     }
   }
 
-  // Default implementations for methods
   var defaults = {
     find: function(scope) {
       return querySelectorAll(scope, "." + this.name);
@@ -352,18 +283,15 @@ flex: 0 0 auto;
 
       this.clearError(el);
 
-      // Add all these error classes, as Shiny does
       var errClass = "shiny-output-error";
       if (err.type !== null) {
-        // use the classes of the error condition as CSS class names
+
         errClass = errClass + " " + $.map(asArray(err.type), function(type) {
           return errClass + "-" + type;
         }).join(" ");
       }
       errClass = errClass + " htmlwidgets-error";
 
-      // Is el inline or block? If inline or inline-block, just display:none it
-      // and add an inline error.
       var display = $el.css("display");
       $el.data("restore-display-mode", display);
 
@@ -375,24 +303,18 @@ flex: 0 0 auto;
           $el.after(errorSpan);
         }
       } else if (display === "block") {
-        // If block, add an error just after the el, set visibility:none on the
-        // el, and position the error to be on top of the el.
-        // Mark it with a unique ID and CSS class so we can remove it later.
+
         $el.css("visibility", "hidden");
         if (err.message !== "") {
           var errorDiv = $("<div>").addClass(errClass).css("position", "absolute")
             .css("top", el.offsetTop)
             .css("left", el.offsetLeft)
-            // setting width can push out the page size, forcing otherwise
-            // unnecessary scrollbars to appear and making it impossible for
-            // the element to shrink; so use max-width instead
+
             .css("maxWidth", el.offsetWidth)
             .css("height", el.offsetHeight);
           errorDiv.text(err.message);
           $el.after(errorDiv);
 
-          // Really dumb way to keep the size/position of the error in sync with
-          // the parent element as the window is resized or whatever.
           var intId = setInterval(function() {
             if (!errorDiv[0].parentElement) {
               clearInterval(intId);
@@ -424,17 +346,6 @@ flex: 0 0 auto;
     sizing: {}
   };
 
-  // Called by widget bindings to register a new type of widget. The definition
-  // object can contain the following properties:
-  // - name (required) - A string indicating the binding name, which will be
-  //   used by default as the CSS classname to look for.
-  // - initialize (optional) - A function(el) that will be called once per
-  //   widget element; if a value is returned, it will be passed as the third
-  //   value to renderValue.
-  // - renderValue (required) - A function(el, data, initValue) that will be
-  //   called with data. Static contexts will cause this to be called once per
-  //   element; Shiny apps will cause this to be called multiple times per
-  //   element, as the data changes.
   window.HTMLWidgets.widget = function(definition) {
     if (!definition.name) {
       throw new Error("Widget must have a name");
@@ -442,26 +353,11 @@ flex: 0 0 auto;
     if (!definition.type) {
       throw new Error("Widget must have a type");
     }
-    // Currently we only support output widgets
+
     if (definition.type !== "output") {
       throw new Error("Unrecognized widget type '" + definition.type + "'");
     }
-    // TODO: Verify that .name is a valid CSS classname
 
-    // Support new-style instance-bound definitions. Old-style class-bound
-    // definitions have one widget "object" per widget per type/class of
-    // widget; the renderValue and resize methods on such widget objects
-    // take el and instance arguments, because the widget object can't
-    // store them. New-style instance-bound definitions have one widget
-    // object per widget instance; the definition that's passed in doesn't
-    // provide renderValue or resize methods at all, just the single method
-    //   factory(el, width, height)
-    // which returns an object that has renderValue(x) and resize(w, h).
-    // This enables a far more natural programming style for the widget
-    // author, who can store per-instance state using either OO-style
-    // instance fields or functional-style closure variables (I guess this
-    // is in contrast to what can only be called C-style pseudo-OO which is
-    // what we required before).
     if (definition.factory) {
       definition = createLegacyDefinitionAdapter(definition);
     }
@@ -470,47 +366,24 @@ flex: 0 0 auto;
       throw new Error("Widget must have a renderValue function");
     }
 
-    // For static rendering (non-Shiny), use a simple widget registration
-    // scheme. We also use this scheme for Shiny apps/documents that also
-    // contain static widgets.
     window.HTMLWidgets.widgets = window.HTMLWidgets.widgets || [];
-    // Merge defaults into the definition; don't mutate the original definition.
+
     var staticBinding = extend({}, defaults, definition);
     overrideMethod(staticBinding, "find", function(superfunc) {
       return function(scope) {
         var results = superfunc(scope);
-        // Filter out Shiny outputs, we only want the static kind
+
         return filterByClass(results, "html-widget-output", false);
       };
     });
     window.HTMLWidgets.widgets.push(staticBinding);
 
     if (shinyMode) {
-      // Shiny is running. Register the definition with an output binding.
-      // The definition itself will not be the output binding, instead
-      // we will make an output binding object that delegates to the
-      // definition. This is because we foolishly used the same method
-      // name (renderValue) for htmlwidgets definition and Shiny bindings
-      // but they actually have quite different semantics (the Shiny
-      // bindings receive data that includes lots of metadata that it
-      // strips off before calling htmlwidgets renderValue). We can't
-      // just ignore the difference because in some widgets it's helpful
-      // to call this.renderValue() from inside of resize(), and if
-      // we're not delegating, then that call will go to the Shiny
-      // version instead of the htmlwidgets version.
 
-      // Merge defaults with definition, without mutating either.
       var bindingDef = extend({}, defaults, definition);
 
-      // This object will be our actual Shiny binding.
       var shinyBinding = new Shiny.OutputBinding();
 
-      // With a few exceptions, we'll want to simply use the bindingDef's
-      // version of methods if they are available, otherwise fall back to
-      // Shiny's defaults. NOTE: If Shiny's output bindings gain additional
-      // methods in the future, and we want them to be overrideable by
-      // HTMLWidget binding definitions, then we'll need to add them to this
-      // list.
       delegateMethod(shinyBinding, bindingDef, "getId");
       delegateMethod(shinyBinding, bindingDef, "onValueChange");
       delegateMethod(shinyBinding, bindingDef, "onValueError");
@@ -518,32 +391,20 @@ flex: 0 0 auto;
       delegateMethod(shinyBinding, bindingDef, "clearError");
       delegateMethod(shinyBinding, bindingDef, "showProgress");
 
-      // The find, renderValue, and resize are handled differently, because we
-      // want to actually decorate the behavior of the bindingDef methods.
-
       shinyBinding.find = function(scope) {
         var results = bindingDef.find(scope);
 
-        // Only return elements that are Shiny outputs, not static ones
         var dynamicResults = results.filter(".html-widget-output");
 
-        // It's possible that whatever caused Shiny to think there might be
-        // new dynamic outputs, also caused there to be new static outputs.
-        // Since there might be lots of different htmlwidgets bindings, we
-        // schedule execution for later--no need to staticRender multiple
-        // times.
         if (results.length !== dynamicResults.length)
           scheduleStaticRender();
 
         return dynamicResults;
       };
 
-      // Wrap renderValue to handle initialization, which unfortunately isn't
-      // supported natively by Shiny at the time of this writing.
-
       shinyBinding.renderValue = function(el, data) {
         Shiny.renderDependencies(data.deps);
-        // Resolve strings marked as javascript literals to objects
+
         if (!(data.evals instanceof Array)) data.evals = [data.evals];
         for (var i = 0; data.evals && i < data.evals.length; i++) {
           window.HTMLWidgets.evaluateStringMember(data.x, data.evals[i]);
@@ -570,11 +431,9 @@ flex: 0 0 auto;
         evalAndRun(data.jsHooks.render, elementData(el, "init_result"), [el, data.x]);
       };
 
-      // Only override resize if bindingDef implements it
       if (bindingDef.resize) {
         shinyBinding.resize = function(el, width, height) {
-          // Shiny can call resize before initialize/renderValue have been
-          // called, which doesn't make sense for widgets.
+
           if (elementData(el, "initialized")) {
             bindingDef.resize(el, width, height, elementData(el, "init_result"));
           }
@@ -595,8 +454,6 @@ flex: 0 0 auto;
     }
   }
 
-  // Render static widgets after the document finishes loading
-  // Statically render all elements that are of this widget's class
   window.HTMLWidgets.staticRender = function() {
     var bindings = window.HTMLWidgets.widgets || [];
     forEach(bindings, function(binding) {
@@ -638,13 +495,6 @@ flex: 0 0 auto;
 
           on(window, "resize", resizeHandler);
 
-          // This is needed for cases where we're running in a Shiny
-          // app, but the widget itself is not a Shiny output, but
-          // rather a simple static widget. One example of this is
-          // an rmarkdown document that has runtime:shiny and widget
-          // that isn't in a render function. Shiny only knows to
-          // call resize handlers for Shiny outputs, not for static
-          // widgets, so we do it ourselves.
           if (window.jQuery) {
             window.jQuery(document).on(
               "shown.htmlwidgets shown.bs.tab.htmlwidgets shown.bs.collapse.htmlwidgets",
@@ -656,16 +506,8 @@ flex: 0 0 auto;
             );
           }
 
-          // This is needed for the specific case of ioslides, which
-          // flips slides between display:none and display:block.
-          // Ideally we would not have to have ioslide-specific code
-          // here, but rather have ioslides raise a generic event,
-          // but the rmarkdown package just went to CRAN so the
-          // window to getting that fixed may be long.
           if (window.addEventListener) {
-            // It's OK to limit this to window.addEventListener
-            // browsers because ioslides itself only supports
-            // such browsers.
+
             on(document, "slideenter", resizeHandler);
             on(document, "slideleave", resizeHandler);
           }
@@ -674,7 +516,7 @@ flex: 0 0 auto;
         var scriptData = document.querySelector("script[data-for='" + el.id + "'][type='application/json']");
         if (scriptData) {
           var data = JSON.parse(scriptData.textContent || scriptData.text);
-          // Resolve strings marked as javascript literals to objects
+
           if (!(data.evals instanceof Array)) data.evals = [data.evals];
           for (var k = 0; data.evals && k < data.evals.length; k++) {
             window.HTMLWidgets.evaluateStringMember(data.x, data.evals[k]);
@@ -687,7 +529,6 @@ flex: 0 0 auto;
 
     invokePostRenderHandlers();
   }
-
 
   function has_jQuery3() {
     if (!window.jQuery) {
@@ -742,9 +583,8 @@ flex: 0 0 auto;
     });
   }
 
-
   window.HTMLWidgets.getAttachmentUrl = function(depname, key) {
-    // If no key, default to the first item
+
     if (typeof(key) === "undefined")
       key = 1;
 
@@ -789,9 +629,7 @@ flex: 0 0 auto;
       });
       return newArray;
   };
-  // Split value at splitChar, but allow splitChar to be escaped
-  // using escapeChar. Any other characters escaped by escapeChar
-  // will be included as usual (including escapeChar itself).
+
   function splitWithEscape(value, splitChar, escapeChar) {
     var results = [];
     var escapeMode = false;
@@ -816,38 +654,27 @@ flex: 0 0 auto;
     }
     return results;
   }
-  // Function authored by Yihui/JJ Allaire
+
   window.HTMLWidgets.evaluateStringMember = function(o, member) {
     var parts = splitWithEscape(member, '.', '\\');
     for (var i = 0, l = parts.length; i < l; i++) {
       var part = parts[i];
-      // part may be a character or 'numeric' member name
+
       if (o !== null && typeof o === "object" && part in o) {
-        if (i == (l - 1)) { // if we are at the end of the line then evalulate
+        if (i == (l - 1)) {
           if (typeof o[part] === "string")
             o[part] = tryEval(o[part]);
-        } else { // otherwise continue to next embedded object
+        } else {
           o = o[part];
         }
       }
     }
   };
 
-  // Retrieve the HTMLWidget instance (i.e. the return value of an
-  // HTMLWidget binding's initialize() or factory() function)
-  // associated with an element, or null if none.
   window.HTMLWidgets.getInstance = function(el) {
     return elementData(el, "init_result");
   };
 
-  // Finds the first element in the scope that matches the selector,
-  // and returns the HTMLWidget instance (i.e. the return value of
-  // an HTMLWidget binding's initialize() or factory() function)
-  // associated with that element, if any. If no element matches the
-  // selector, or the first matching element has no HTMLWidget
-  // instance associated with it, then null is returned.
-  //
-  // The scope argument is optional, and defaults to window.document.
   window.HTMLWidgets.find = function(scope, selector) {
     if (arguments.length == 1) {
       selector = scope;
@@ -862,14 +689,6 @@ flex: 0 0 auto;
     }
   };
 
-  // Finds all elements in the scope that match the selector, and
-  // returns the HTMLWidget instances (i.e. the return values of
-  // an HTMLWidget binding's initialize() or factory() function)
-  // associated with the elements, in an array. If elements that
-  // match the selector don't have an associated HTMLWidget
-  // instance, the returned array will contain nulls.
-  //
-  // The scope argument is optional, and defaults to window.document.
   window.HTMLWidgets.findAll = function(scope, selector) {
     if (arguments.length == 1) {
       selector = scope;
@@ -894,16 +713,10 @@ flex: 0 0 auto;
     }
   }
 
-  // Register the given callback function to be invoked after the
-  // next time static widgets are rendered.
   window.HTMLWidgets.addPostRenderHandler = function(callback) {
     postRenderHandlers.push(callback);
   };
 
-  // Takes a new-style instance-bound definition, and returns an
-  // old-style class-bound definition. This saves us from having
-  // to rewrite all the logic in this file to accomodate both
-  // types of definitions.
   function createLegacyDefinitionAdapter(defn) {
     var result = {
       name: defn.name,
@@ -980,24 +793,22 @@ zoom: 1;
 <script>(function (factory) {
 	var L, proj4;
 	if (typeof define === 'function' && define.amd) {
-		// AMD
+
 		define(['leaflet', 'proj4'], factory);
 	} else if (typeof module === 'object' && typeof module.exports === "object") {
-		// Node/CommonJS
+
 		L = require('leaflet');
 		proj4 = require('proj4');
 		module.exports = factory(L, proj4);
 	} else {
-		// Browser globals
+
 		if (typeof window.L === 'undefined' || typeof window.proj4 === 'undefined')
 			throw 'Leaflet and proj4 must be loaded first';
 		factory(window.L, window.proj4);
 	}
 }(function (L, proj4) {
 	if (proj4.__esModule && proj4.default) {
-		// If proj4 was bundled as an ES6 module, unwrap it to get
-		// to the actual main proj4 object.
-		// See discussion in https://github.com/kartena/Proj4Leaflet/pull/147
+
 		proj4 = proj4.default;
 	}
  
@@ -1102,7 +913,7 @@ zoom: 1;
 			if (zoom === iZoom) {
 				return this._scales[zoom];
 			} else {
-				// Non-integer zoom, interpolate
+
 				baseScale = this._scales[iZoom];
 				nextScale = this._scales[iZoom + 1];
 				scaleDiff = nextScale - baseScale;
@@ -1112,20 +923,20 @@ zoom: 1;
 		},
 
 		zoom: function(scale) {
-			// Find closest number in this._scales, down
+
 			var downScale = this._closestElement(this._scales, scale),
 				downZoom = this._scales.indexOf(downScale),
 				nextScale,
 				nextZoom,
 				scaleDiff;
-			// Check if scale is downScale => return array index
+
 			if (scale === downScale) {
 				return downZoom;
 			}
 			if (downScale === undefined) {
 				return -Infinity;
 			}
-			// Interpolate
+
 			nextZoom = downZoom + 1;
 			nextScale = this._scales[nextZoom];
 			if (nextScale === undefined) {
@@ -1175,9 +986,6 @@ zoom: 1;
 				}
 			}
 
-			// Base class' addData might call us recursively, but
-			// CRS shouldn't be cleared in that case, since CRS applies
-			// to the whole GeoJSON, inluding sub-features.
 			this._callLevel++;
 			try {
 				L.GeoJSON.prototype.addData.call(this, geojson);
@@ -1200,10 +1008,6 @@ zoom: 1;
 			this._projectedBounds = bounds;
 		},
 
-		// Danger ahead: Overriding internal methods in Leaflet.
-		// Decided to do this rather than making a copy of L.ImageOverlay
-		// and doing very tiny modifications to it.
-		// Future will tell if this was wise or not.
 		_animateZoom: function (event) {
 			var scale = this._map.getZoomScale(event.zoom);
 			var northWest = L.point(this._projectedBounds.min.x, this._projectedBounds.max.y);
@@ -1352,7 +1156,6 @@ var ClusterLayerStore = /*#__PURE__*/function () {
 
 exports["default"] = ClusterLayerStore;
 
-
 },{"./util":17}],2:[function(require,module,exports){
 "use strict";
 
@@ -1438,7 +1241,6 @@ var ControlStore = /*#__PURE__*/function () {
 
 exports["default"] = ControlStore;
 
-
 },{}],3:[function(require,module,exports){
 "use strict";
 
@@ -1457,9 +1259,8 @@ var _proj4leaflet2 = _interopRequireDefault(_proj4leaflet);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
-// Helper function to instanciate a ICRS instance.
 function getCRS(crsOptions) {
-  var crs = _leaflet2["default"].CRS.EPSG3857; // Default Spherical Mercator
+  var crs = _leaflet2["default"].CRS.EPSG3857;
 
   switch (crsOptions.crsClass) {
     case "L.CRS.EPSG3857":
@@ -1497,9 +1298,7 @@ function getCRS(crsOptions) {
 
       if (crsOptions.options && crsOptions.options.transformation) {
         crsOptions.options.transformation = _leaflet2["default"].Transformation(crsOptions.options.transformation[0], crsOptions.options.transformation[1], crsOptions.options.transformation[2], crsOptions.options.transformation[3]);
-      } // L.Proj.CRS.TMS is deprecated as of Leaflet 1.x, fall back to L.Proj.CRS
-      //crs = new Proj4Leaflet.CRS.TMS(crsOptions.code, crsOptions.proj4def, crsOptions.projectedBounds, crsOptions.options);
-
+      }
 
       crs = new _proj4leaflet2["default"].CRS(crsOptions.code, crsOptions.proj4def, crsOptions.options);
       break;
@@ -1507,7 +1306,6 @@ function getCRS(crsOptions) {
 
   return crs;
 }
-
 
 },{"./global/leaflet":10,"./global/proj4leaflet":11}],4:[function(require,module,exports){
 "use strict";
@@ -1572,7 +1370,7 @@ var DataFrame = /*#__PURE__*/function () {
       }
 
       this.columns[index] = (0, _util.asArray)(values);
-      this.colstrict[index] = !!strict; // TODO: Validate strictness (ensure lengths match up with other stricts)
+      this.colstrict[index] = !!strict;
 
       this._updateCachedProperties();
 
@@ -1628,7 +1426,6 @@ var DataFrame = /*#__PURE__*/function () {
 
 exports["default"] = DataFrame;
 
-
 },{"./util":17}],5:[function(require,module,exports){
 "use strict";
 
@@ -1638,13 +1435,9 @@ var _leaflet2 = _interopRequireDefault(_leaflet);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
-// In RMarkdown's self-contained mode, we don't have a way to carry around the
-// images that Leaflet needs but doesn't load into the page. Instead, we'll use
-// the unpkg CDN.
 if (typeof _leaflet2["default"].Icon.Default.imagePath === "undefined") {
   _leaflet2["default"].Icon.Default.imagePath = "https://unpkg.com/leaflet@1.3.1/dist/images/";
 }
-
 
 },{"./global/leaflet":10}],6:[function(require,module,exports){
 "use strict";
@@ -1655,10 +1448,9 @@ var _leaflet2 = _interopRequireDefault(_leaflet);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
-// add texxtsize, textOnly, and style
 _leaflet2["default"].Tooltip.prototype.options.textsize = "10px";
 _leaflet2["default"].Tooltip.prototype.options.textOnly = false;
-_leaflet2["default"].Tooltip.prototype.options.style = null; // copy original layout to not completely stomp it.
+_leaflet2["default"].Tooltip.prototype.options.style = null;
 
 var initLayoutOriginal = _leaflet2["default"].Tooltip.prototype._initLayout;
 
@@ -1677,7 +1469,6 @@ _leaflet2["default"].Tooltip.prototype._initLayout = function () {
   }
 };
 
-
 },{"./global/leaflet":10}],7:[function(require,module,exports){
 "use strict";
 
@@ -1692,8 +1483,7 @@ var protocolRegex = /^\/\//;
 var upgrade_protocol = function upgrade_protocol(urlTemplate) {
   if (protocolRegex.test(urlTemplate)) {
     if (window.location.protocol === "file:") {
-      // if in a local file, support http
-      // http should auto upgrade if necessary
+
       urlTemplate = "http:" + urlTemplate;
     }
   }
@@ -1715,7 +1505,6 @@ _leaflet2["default"].TileLayer.WMS.prototype.initialize = function (urlTemplate,
   originalLTileLayerWMSInitialize.call(this, urlTemplate, options);
 };
 
-
 },{"./global/leaflet":10}],8:[function(require,module,exports){
 (function (global){(function (){
 "use strict";
@@ -1724,7 +1513,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports["default"] = global.HTMLWidgets;
-
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],9:[function(require,module,exports){
@@ -1736,7 +1524,6 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports["default"] = global.jQuery;
 
-
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],10:[function(require,module,exports){
 (function (global){(function (){
@@ -1746,7 +1533,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports["default"] = global.L;
-
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],11:[function(require,module,exports){
@@ -1758,7 +1544,6 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports["default"] = global.L.Proj;
 
-
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],12:[function(require,module,exports){
 (function (global){(function (){
@@ -1768,7 +1553,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports["default"] = global.Shiny;
-
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],13:[function(require,module,exports){
@@ -1829,7 +1613,7 @@ var methods = window.LeafletWidget.methods = _jquery2["default"].extend({}, _met
 
 window.LeafletWidget.DataFrame = _dataframe2["default"];
 window.LeafletWidget.ClusterLayerStore = _clusterLayerStore2["default"];
-window.LeafletWidget.utils.getCRS = _crs_utils.getCRS; // Send updated bounds back to app. Takes a leaflet event object as input.
+window.LeafletWidget.utils.getCRS = _crs_utils.getCRS;
 
 function updateBounds(map) {
   var id = map.getContainer().id;
@@ -1851,26 +1635,14 @@ function updateBounds(map) {
 }
 
 function preventUnintendedZoomOnScroll(map) {
-  // Prevent unwanted scroll capturing. Similar in purpose to
-  // https://github.com/CliffCloud/Leaflet.Sleep but with a
-  // different set of heuristics.
-  // The basic idea is that when a mousewheel/DOMMouseScroll
-  // event is seen, we disable scroll wheel zooming until the
-  // user moves their mouse cursor or clicks on the map. This
-  // is slightly trickier than just listening for mousemove,
-  // because mousemove is fired when the page is scrolled,
-  // even if the user did not physically move the mouse. We
-  // handle this by examining the mousemove event's screenX
-  // and screenY properties; if they change, we know it's a
-  // "true" move.
-  // lastScreen can never be null, but its x and y can.
+
   var lastScreen = {
     x: null,
     y: null
   };
   (0, _jquery2["default"])(document).on("mousewheel DOMMouseScroll", "*", function (e) {
-    // Disable zooming (until the mouse moves or click)
-    map.scrollWheelZoom.disable(); // Any mousemove events at this screen position will be ignored.
+
+    map.scrollWheelZoom.disable();
 
     lastScreen = {
       x: e.originalEvent.screenX,
@@ -1878,10 +1650,10 @@ function preventUnintendedZoomOnScroll(map) {
     };
   });
   (0, _jquery2["default"])(document).on("mousemove", "*", function (e) {
-    // Did the mouse really move?
+
     if (map.options.scrollWheelZoom) {
       if (lastScreen.x !== null && e.screenX !== lastScreen.x || e.screenY !== lastScreen.y) {
-        // It really moved. Enable zooming.
+
         map.scrollWheelZoom.enable();
         lastScreen = {
           x: null,
@@ -1891,7 +1663,7 @@ function preventUnintendedZoomOnScroll(map) {
     }
   });
   (0, _jquery2["default"])(document).on("mousedown", ".leaflet", function (e) {
-    // Clicking always enables zooming.
+
     if (map.options.scrollWheelZoom) {
       map.scrollWheelZoom.enable();
       lastScreen = {
@@ -1908,23 +1680,22 @@ _htmlwidgets2["default"].widget({
   factory: function factory(el, width, height) {
     var map = null;
     return {
-      // we need to store our map in our returned object.
+
       getMap: function getMap() {
         return map;
       },
       renderValue: function renderValue(data) {
-        // Create an appropriate CRS Object if specified
+
         if (data && data.options && data.options.crs) {
           data.options.crs = (0, _crs_utils.getCRS)(data.options.crs);
-        } // As per https://github.com/rstudio/leaflet/pull/294#discussion_r79584810
-
+        }
 
         if (map) {
           map.remove();
 
           map = function () {
             return;
-          }(); // undefine map
+          }();
 
         }
 
@@ -1934,25 +1705,25 @@ _htmlwidgets2["default"].widget({
           map = _leaflet2["default"].map(el, data.options);
         }
 
-        preventUnintendedZoomOnScroll(map); // Store some state in the map object
+        preventUnintendedZoomOnScroll(map);
 
         map.leafletr = {
-          // Has the map ever rendered successfully?
+
           hasRendered: false,
-          // Data to be rendered when resize is called with area != 0
+
           pendingRenderData: null
-        }; // Check if the map is rendered statically (no output binding)
+        };
 
         if (_htmlwidgets2["default"].shinyMode && /\bshiny-bound-output\b/.test(el.className)) {
-          map.id = el.id; // Store the map on the element so we can find it later by ID
+          map.id = el.id;
 
-          (0, _jquery2["default"])(el).data("leaflet-map", map); // When the map is clicked, send the coordinates back to the app
+          (0, _jquery2["default"])(el).data("leaflet-map", map);
 
           map.on("click", function (e) {
             _shiny2["default"].onInputChange(map.id + "_click", {
               lat: e.latlng.lat,
               lng: e.latlng.lng,
-              ".nonce": Math.random() // Force reactivity if lat/lng hasn't changed
+              ".nonce": Math.random()
 
             });
           });
@@ -1960,10 +1731,9 @@ _htmlwidgets2["default"].widget({
           map.on("moveend", function (e) {
             updateBounds(e.target);
           }).on("layeradd layerremove", function (e) {
-            // If the layer that's coming or going is a group we created, tell
-            // the server.
+
             if (map.layerManager.getGroupNameFromLayerGroup(e.layer)) {
-              // But to avoid chattiness, coalesce events
+
               if (groupTimerId) {
                 clearTimeout(groupTimerId);
                 groupTimerId = null;
@@ -1981,18 +1751,13 @@ _htmlwidgets2["default"].widget({
         this.doRenderValue(data, map);
       },
       doRenderValue: function doRenderValue(data, map) {
-        // Leaflet does not behave well when you set up a bunch of layers when
-        // the map is not visible (width/height == 0). Popups get misaligned
-        // relative to their owning markers, and the fitBounds calculations
-        // are off. Therefore we wait until the map is actually showing to
-        // render the value (we rely on the resize() callback being invoked
-        // at the appropriate time).
+
         if (el.offsetWidth === 0 || el.offsetHeight === 0) {
           map.leafletr.pendingRenderData = data;
           return;
         }
 
-        map.leafletr.pendingRenderData = null; // Merge data options into defaults
+        map.leafletr.pendingRenderData = null;
 
         var options = _jquery2["default"].extend({
           zoomToLimits: "always"
@@ -2020,7 +1785,7 @@ _htmlwidgets2["default"].widget({
 
         if (data.flyTo) {
           if (!explicitView && !map.leafletr.hasRendered) {
-            // must be done to give a initial starting point
+
             map.fitWorld();
           }
 
@@ -2030,7 +1795,7 @@ _htmlwidgets2["default"].widget({
 
         if (data.flyToBounds) {
           if (!explicitView && !map.leafletr.hasRendered) {
-            // must be done to give a initial starting point
+
             map.fitWorld();
           }
 
@@ -2040,9 +1805,7 @@ _htmlwidgets2["default"].widget({
 
         if (data.options.center) {
           explicitView = true;
-        } // Returns true if the zoomToLimits option says that the map should be
-        // zoomed to map elements.
-
+        }
 
         function needsZoom() {
           return options.zoomToLimits === "always" || options.zoomToLimits === "first" && !map.leafletr.hasRendered;
@@ -2050,8 +1813,7 @@ _htmlwidgets2["default"].widget({
 
         if (!explicitView && needsZoom() && !map.getZoom()) {
           if (data.limits && !_jquery2["default"].isEmptyObject(data.limits)) {
-            // Use the natural limits of what's being drawn on the map
-            // If the size of the bounding box is 0, leaflet gets all weird
+
             var pad = 0.006;
 
             if (data.limits.lat[0] === data.limits.lat[1]) {
@@ -2105,11 +1867,7 @@ if (_htmlwidgets2["default"].shinyMode) {
     if (!map) {
       (0, _util.log)("Couldn't find map with id " + id);
       return;
-    } // If the map has not rendered, stash the proposed `leafletProxy()` calls
-    // in `pendingRenderData.calls` to be run on display via `doRenderValue()`.
-    // This is necessary if the map has not been rendered.
-    // If new pendingRenderData is set via a new `leaflet()`, the previous calls will be discarded.
-
+    }
 
     if (!map.leafletr.hasRendered) {
       map.leafletr.pendingRenderData.calls = map.leafletr.pendingRenderData.calls.concat(data.calls);
@@ -2132,7 +1890,6 @@ if (_htmlwidgets2["default"].shinyMode) {
     }
   });
 }
-
 
 },{"./cluster-layer-store":1,"./control-store":2,"./crs_utils":3,"./dataframe":4,"./fixup-default-icon":5,"./fixup-default-tooltip":6,"./fixup-url-protocol":7,"./global/htmlwidgets":8,"./global/jquery":9,"./global/leaflet":10,"./global/shiny":12,"./layer-manager":14,"./methods":15,"./util":17}],14:[function(require,module,exports){
 (function (global){(function (){
@@ -2165,27 +1922,19 @@ var LayerManager = /*#__PURE__*/function () {
   function LayerManager(map) {
     _classCallCheck(this, LayerManager);
 
-    this._map = map; // BEGIN layer indices
-    // {<groupname>: {<stamp>: layer}}
+    this._map = map;
 
-    this._byGroup = {}; // {<categoryName>: {<stamp>: layer}}
+    this._byGroup = {};
 
-    this._byCategory = {}; // {<categoryName_layerId>: layer}
+    this._byCategory = {};
 
-    this._byLayerId = {}; // {<stamp>: {
-    //             "group": <groupname>,
-    //             "layerId": <layerId>,
-    //             "category": <category>,
-    //             "container": <container>
-    //           }
-    // }
+    this._byLayerId = {};
 
-    this._byStamp = {}; // {<crosstalkGroupName>: {<key>: [<stamp>, <stamp>, ...], ...}}
+    this._byStamp = {};
 
-    this._byCrosstalkGroup = {}; // END layer indices
-    // {<categoryName>: L.layerGroup}
+    this._byCrosstalkGroup = {};
 
-    this._categoryContainers = {}; // {<groupName>: L.layerGroup}
+    this._categoryContainers = {};
 
     this._groupContainers = {};
   }
@@ -2195,46 +1944,36 @@ var LayerManager = /*#__PURE__*/function () {
     value: function addLayer(layer, category, layerId, group, ctGroup, ctKey) {
       var _this = this;
 
-      // Was a group provided?
       var hasId = typeof layerId === "string";
       var grouped = typeof group === "string";
-      var stamp = _leaflet2["default"].Util.stamp(layer) + ""; // This will be the default layer group to add the layer to.
-      // We may overwrite this let before using it (i.e. if a group is assigned).
-      // This one liner creates the _categoryContainers[category] entry if it
-      // doesn't already exist.
+      var stamp = _leaflet2["default"].Util.stamp(layer) + "";
 
       var container = this._categoryContainers[category] = this._categoryContainers[category] || _leaflet2["default"].layerGroup().addTo(this._map);
 
       var oldLayer = null;
 
       if (hasId) {
-        // First, remove any layer with the same category and layerId
+
         var prefixedLayerId = this._layerIdKey(category, layerId);
 
         oldLayer = this._byLayerId[prefixedLayerId];
 
         if (oldLayer) {
           this._removeLayer(oldLayer);
-        } // Update layerId index
-
+        }
 
         this._byLayerId[prefixedLayerId] = layer;
-      } // Update group index
-
+      }
 
       if (grouped) {
         this._byGroup[group] = this._byGroup[group] || {};
-        this._byGroup[group][stamp] = layer; // Since a group is assigned, don't add the layer to the category's layer
-        // group; instead, use the group's layer group.
-        // This one liner creates the _groupContainers[group] entry if it doesn't
-        // already exist.
+        this._byGroup[group][stamp] = layer;
 
         container = this.getLayerGroup(group, true);
-      } // Update category index
-
+      }
 
       this._byCategory[category] = this._byCategory[category] || {};
-      this._byCategory[category][stamp] = layer; // Update stamp index
+      this._byCategory[category][stamp] = layer;
 
       var layerInfo = this._byStamp[stamp] = {
         layer: layer,
@@ -2245,11 +1984,11 @@ var LayerManager = /*#__PURE__*/function () {
         category: category,
         container: container,
         hidden: false
-      }; // Update crosstalk group index
+      };
 
       if (ctGroup) {
         if (layer.setStyle) {
-          // Need to save this info so we know what to set opacity to later
+
           layer.options.origOpacity = typeof layer.options.opacity !== "undefined" ? layer.options.opacity : 0.5;
           layer.options.origFillOpacity = typeof layer.options.fillOpacity !== "undefined" ? layer.options.fillOpacity : 0.2;
         }
@@ -2333,8 +2072,7 @@ var LayerManager = /*#__PURE__*/function () {
 
         if (!ctg[ctKey]) ctg[ctKey] = [];
         ctg[ctKey].push(stamp);
-      } // Add to container
-
+      }
 
       if (!layerInfo.hidden) container.addLayer(layer);
       return oldLayer;
@@ -2345,22 +2083,20 @@ var LayerManager = /*#__PURE__*/function () {
       var _this2 = this;
 
       /* eslint-disable no-console */
-      // For each Crosstalk group...
+
       Object.keys(this._byCrosstalkGroup).forEach(function (ctGroupName) {
         var ctg = _this2._byCrosstalkGroup[ctGroupName];
-        var selection = []; // ...iterate over each Crosstalk key (each of which may have multiple
-        // layers)...
+        var selection = [];
 
         Object.keys(ctg).forEach(function (ctKey) {
-          // ...and for each layer...
+
           ctg[ctKey].forEach(function (stamp) {
-            var layerInfo = _this2._byStamp[stamp]; // ...if it's something with a point...
+            var layerInfo = _this2._byStamp[stamp];
 
             if (layerInfo.layer.getLatLng) {
-              // ... and it's inside the selection bounds...
-              // TODO: Use pixel containment, not lat/lng containment
+
               if (bounds.contains(layerInfo.layer.getLatLng())) {
-                // ...add the key to the selection.
+
                 selection.push(ctKey);
               }
             }
@@ -2411,7 +2147,6 @@ var LayerManager = /*#__PURE__*/function () {
     value: function removeLayer(category, layerIds) {
       var _this3 = this;
 
-      // Find layer info
       _jquery2["default"].each((0, _util.asArray)(layerIds), function (i, layerId) {
         var layer = _this3._byLayerId[_this3._layerIdKey(category, layerId)];
 
@@ -2425,14 +2160,11 @@ var LayerManager = /*#__PURE__*/function () {
     value: function clearLayers(category) {
       var _this4 = this;
 
-      // Find all layers in _byCategory[category]
       var catTable = this._byCategory[category];
 
       if (!catTable) {
         return false;
-      } // Remove all layers. Make copy of keys to avoid mutating the collection
-      // behind the iterator you're accessing.
-
+      }
 
       var stamps = [];
 
@@ -2494,14 +2226,11 @@ var LayerManager = /*#__PURE__*/function () {
     value: function clearGroup(group) {
       var _this6 = this;
 
-      // Find all layers in _byGroup[group]
       var groupTable = this._byGroup[group];
 
       if (!groupTable) {
         return false;
-      } // Remove all layers. Make copy of keys to avoid mutating the collection
-      // behind the iterator you're accessing.
-
+      }
 
       var stamps = [];
 
@@ -2518,8 +2247,7 @@ var LayerManager = /*#__PURE__*/function () {
     value: function clear() {
       function clearLayerGroup(key, layerGroup) {
         layerGroup.clearLayers();
-      } // Clear all indices and layerGroups
-
+      }
 
       this._byGroup = {};
       this._byCategory = {};
@@ -2591,7 +2319,6 @@ var LayerManager = /*#__PURE__*/function () {
 
 exports["default"] = LayerManager;
 
-
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./global/jquery":9,"./global/leaflet":10,"./util":17}],15:[function(require,module,exports){
 (function (global){(function (){
@@ -2644,11 +2371,8 @@ function mouseHandler(mapId, layerId, group, eventName, extraInfo) {
     var latLng = e.target.getLatLng ? e.target.getLatLng() : e.latlng;
 
     if (latLng) {
-      // retrieve only lat, lon values to remove prototype
-      //   and extra parameters added by 3rd party modules
-      // these objects are for json serialization, not javascript
-      var latLngVal = _leaflet2["default"].latLng(latLng); // make sure it has consistent shape
 
+      var latLngVal = _leaflet2["default"].latLng(latLng);
 
       latLng = {
         lat: latLngVal.lat,
@@ -2658,7 +2382,7 @@ function mouseHandler(mapId, layerId, group, eventName, extraInfo) {
 
     var eventInfo = _jquery2["default"].extend({
       id: layerId,
-      ".nonce": Math.random() // force reactivity
+      ".nonce": Math.random()
 
     }, group !== null ? {
       group: group
@@ -2746,11 +2470,7 @@ methods.addWMSTiles = function (baseUrl, layerId, group, options) {
   }
 
   this.layerManager.addLayer(_leaflet2["default"].tileLayer.wms(baseUrl, options), "tile", layerId, group);
-}; // Given:
-//   {data: ["a", "b", "c"], index: [0, 1, 0, 2]}
-// returns:
-//   ["a", "b", "a", "c"]
-
+};
 
 function unpackStrings(iconset) {
   if (!iconset) {
@@ -2855,24 +2575,20 @@ methods.addMarkers = function (lat, lng, icon, layerId, group, options, popup, p
   var getIcon;
 
   if (icon) {
-    // Unpack icons
+
     icon.iconUrl = unpackStrings(icon.iconUrl);
     icon.iconRetinaUrl = unpackStrings(icon.iconRetinaUrl);
     icon.shadowUrl = unpackStrings(icon.shadowUrl);
-    icon.shadowRetinaUrl = unpackStrings(icon.shadowRetinaUrl); // This cbinds the icon URLs and any other icon options; they're all
-    // present on the icon object.
+    icon.shadowRetinaUrl = unpackStrings(icon.shadowRetinaUrl);
 
-    icondf = new _dataframe2["default"]().cbind(icon); // Constructs an icon from a specified row of the icon dataframe.
+    icondf = new _dataframe2["default"]().cbind(icon);
 
     getIcon = function getIcon(i) {
       var opts = icondf.get(i);
 
       if (!opts.iconUrl) {
         return new _leaflet2["default"].Icon.Default();
-      } // Composite options (like points or sizes) are passed from R with each
-      // individual component as its own option. We need to combine them now
-      // into their composite form.
-
+      }
 
       if (opts.iconWidth) {
         opts.iconSize = [opts.iconWidth, opts.iconHeight];
@@ -2914,9 +2630,8 @@ methods.addAwesomeMarkers = function (lat, lng, icon, layerId, group, options, p
   var getIcon;
 
   if (icon) {
-    // This cbinds the icon URLs and any other icon options; they're all
-    // present on the icon object.
-    icondf = new _dataframe2["default"]().cbind(icon); // Constructs an icon from a specified row of the icon dataframe.
+
+    icondf = new _dataframe2["default"]().cbind(icon);
 
     getIcon = function getIcon(i) {
       var opts = icondf.get(i);
@@ -3048,7 +2763,6 @@ methods.addCircleMarkers = function (lat, lng, radius, layerId, group, options, 
  * @param lng Array of arrays of longitude coordinates for polylines
  */
 
-
 methods.addPolylines = function (polygons, layerId, group, options, popup, popupOptions, label, labelOptions, highlightOptions) {
   if (polygons.length > 0) {
     var df = new _dataframe2["default"]().col("shapes", polygons).col("layerId", layerId).col("group", group).col("popup", popup).col("popupOptions", popupOptions).col("label", label).col("labelOptions", labelOptions).col("highlightOptions", highlightOptions).cbind(options);
@@ -3112,16 +2826,11 @@ methods.addRectangles = function (lat1, lng1, lat2, lng2, layerId, group, option
  * @param lng Array of arrays of longitude coordinates for polygons
  */
 
-
 methods.addPolygons = function (polygons, layerId, group, options, popup, popupOptions, label, labelOptions, highlightOptions) {
   if (polygons.length > 0) {
     var df = new _dataframe2["default"]().col("shapes", polygons).col("layerId", layerId).col("group", group).col("popup", popup).col("popupOptions", popupOptions).col("label", label).col("labelOptions", labelOptions).col("highlightOptions", highlightOptions).cbind(options);
     addLayers(this, "shape", df, function (df, i) {
-      // This code used to use L.multiPolygon, but that caused
-      // double-click on a multipolygon to fail to zoom in on the
-      // map. Surprisingly, putting all the rings in a single
-      // polygon seems to still work; complicated multipolygons
-      // are still rendered correctly.
+
       var shapes = df.get(i, "shapes").map(function (polygon) {
         return polygon.map(_htmlwidgets2["default"].dataframeToD3);
       }).reduce(function (acc, val) {
@@ -3133,8 +2842,7 @@ methods.addPolygons = function (polygons, layerId, group, options, popup, popupO
 };
 
 methods.addGeoJSON = function (data, layerId, group, style) {
-  // This time, self is actually needed because the callbacks below need
-  // to access both the inner and outer senses of "this"
+
   var self = this;
 
   if (typeof data === "string") {
@@ -3176,8 +2884,7 @@ methods.clearGeoJSON = function () {
 };
 
 methods.addTopoJSON = function (data, layerId, group, style) {
-  // This time, self is actually needed because the callbacks below need
-  // to access both the inner and outer senses of "this"
+
   var self = this;
 
   if (typeof data === "string") {
@@ -3227,11 +2934,7 @@ methods.addControl = function (html, position, layerId, classes) {
       div.setAttribute("id", layerId);
     }
 
-    this._div = div; // It's possible for window.Shiny to be true but Shiny.initializeInputs to
-    // not be, when a static leaflet widget is included as part of the shiny
-    // UI directly (not through leafletOutput or uiOutput). In this case we
-    // don't do the normal Shiny stuff as that will all happen when Shiny
-    // itself loads and binds the entire doc.
+    this._div = div;
 
     if (window.Shiny && _shiny2["default"].initializeInputs) {
       _shiny2["default"].renderHtml(html, this._div);
@@ -3293,26 +2996,18 @@ methods.addLegend = function (options) {
         legendHTML = "";
 
     if (options.type === "numeric") {
-      // # Formatting constants.
-      var singleBinHeight = 20; // The distance between tick marks, in px
 
-      var vMargin = 8; // If 1st tick mark starts at top of gradient, how
-      // many extra px are needed for the top half of the
-      // 1st label? (ditto for last tick mark/label)
+      var singleBinHeight = 20;
 
-      var tickWidth = 4; // How wide should tick marks be, in px?
+      var vMargin = 8;
 
-      var labelPadding = 6; // How much distance to reserve for tick mark?
-      // (Must be >= tickWidth)
-      // # Derived formatting parameters.
-      // What's the height of a single bin, in percentage (of gradient height)?
-      // It might not just be 1/(n-1), if the gradient extends past the tick
-      // marks (which can be the case for pretty cut points).
+      var tickWidth = 4;
 
-      var singleBinPct = (options.extra.p_n - options.extra.p_1) / (labels.length - 1); // Each bin is `singleBinHeight` high. How tall is the gradient?
+      var labelPadding = 6;
 
-      var totalHeight = 1 / singleBinPct * singleBinHeight + 1; // How far should the first tick be shifted down, relative to the top
-      // of the gradient?
+      var singleBinPct = (options.extra.p_n - options.extra.p_1) / (labels.length - 1);
+
+      var totalHeight = 1 / singleBinPct * singleBinHeight + 1;
 
       var tickOffset = singleBinHeight / singleBinPct * options.extra.p_1;
       gradSpan = (0, _jquery2["default"])("<span/>").css({
@@ -3326,8 +3021,7 @@ methods.addLegend = function (options) {
       var leftDiv = (0, _jquery2["default"])("<div/>").css("float", "left"),
           rightDiv = (0, _jquery2["default"])("<div/>").css("float", "left");
       leftDiv.append(gradSpan);
-      (0, _jquery2["default"])(div).append(leftDiv).append(rightDiv).append((0, _jquery2["default"])("<br>")); // Have to attach the div to the body at this early point, so that the
-      // svg text getComputedTextLength() actually works, below.
+      (0, _jquery2["default"])(div).append(leftDiv).append(rightDiv).append((0, _jquery2["default"])("<br>"));
 
       document.body.appendChild(div);
       var ns = "http://www.w3.org/2000/svg";
@@ -3335,9 +3029,9 @@ methods.addLegend = function (options) {
       rightDiv.append(svg);
       var g = document.createElementNS(ns, "g");
       (0, _jquery2["default"])(g).attr("transform", "translate(0, " + vMargin + ")");
-      svg.appendChild(g); // max label width needed to set width of svg, and right-justify text
+      svg.appendChild(g);
 
-      var maxLblWidth = 0; // Create tick marks and labels
+      var maxLblWidth = 0;
 
       _jquery2["default"].each(labels, function (i, label) {
         var y = tickOffset + i * singleBinHeight + 0.5;
@@ -3348,10 +3042,9 @@ methods.addLegend = function (options) {
         var thisTick = document.createElementNS(ns, "line");
         (0, _jquery2["default"])(thisTick).attr("x1", 0).attr("x2", tickWidth).attr("y1", y).attr("y2", y).attr("stroke-width", 1);
         g.appendChild(thisTick);
-      }); // Now that we know the max label width, we can right-justify
+      });
 
-
-      (0, _jquery2["default"])(svg).find("text").attr("dx", labelPadding + maxLblWidth).attr("text-anchor", "end"); // Final size for <svg>
+      (0, _jquery2["default"])(svg).find("text").attr("dx", labelPadding + maxLblWidth).attr("text-anchor", "end");
 
       (0, _jquery2["default"])(svg).css({
         width: maxLblWidth + labelPadding + "px",
@@ -3379,7 +3072,7 @@ methods.addLegend = function (options) {
   };
 
   if (options.group) {
-    // Auto generate a layerID if not provided
+
     if (!options.layerId) {
       options.layerId = _leaflet2["default"].Util.stamp(legend);
     }
@@ -3413,7 +3106,6 @@ methods.addLegend = function (options) {
 methods.addLayersControl = function (baseGroups, overlayGroups, options) {
   var _this4 = this;
 
-  // Only allow one layers control at a time
   methods.removeLayersControl.call(this);
   var firstLayer = true;
   var base = {};
@@ -3422,7 +3114,7 @@ methods.addLayersControl = function (baseGroups, overlayGroups, options) {
     var layer = _this4.layerManager.getLayerGroup(g, true);
 
     if (layer) {
-      base[g] = layer; // Check if >1 base layers are visible; if so, hide all but the first one
+      base[g] = layer;
 
       if (_this4.hasLayer(layer)) {
         if (firstLayer) {
@@ -3456,7 +3148,7 @@ methods.removeLayersControl = function () {
 };
 
 methods.addScaleBar = function (options) {
-  // Only allow one scale bar at a time
+
   methods.removeScaleBar.call(this);
 
   var scaleBar = _leaflet2["default"].control.scale(options).addTo(this);
@@ -3540,8 +3232,7 @@ methods.setGroupOptions = function (group, options) {
   var _this7 = this;
 
   _jquery2["default"].each((0, _util.asArray)(group), function (i, g) {
-    var layer = _this7.layerManager.getLayerGroup(g, true); // This slightly tortured check is because 0 is a valid value for zoomLevels
-
+    var layer = _this7.layerManager.getLayerGroup(g, true);
 
     if (typeof options.zoomLevels !== "undefined" && options.zoomLevels !== null) {
       layer.zoomLevels = (0, _util.asArray)(options.zoomLevels);
@@ -3553,24 +3244,9 @@ methods.setGroupOptions = function (group, options) {
 };
 
 methods.addRasterImage = function (uri, bounds, layerId, group, options) {
-  // uri is a data URI containing an image. We want to paint this image as a
-  // layer at (top-left) bounds[0] to (bottom-right) bounds[1].
-  // We can't simply use ImageOverlay, as it uses bilinear scaling which looks
-  // awful as you zoom in (and sometimes shifts positions or disappears).
-  // Instead, we'll use a TileLayer.Canvas to draw pieces of the image.
-  // First, some helper functions.
-  // degree2tile converts latitude, longitude, and zoom to x and y tile
-  // numbers. The tile numbers returned can be non-integral, as there's no
-  // reason to expect that the lat/lng inputs are exactly on the border of two
-  // tiles.
-  //
-  // We'll use this to convert the bounds we got from the server, into coords
-  // in tile-space at a given zoom level. Note that once we do the conversion,
-  // we don't to do any more trigonometry to convert between pixel coordinates
-  // and tile coordinates; the source image pixel coords, destination canvas
-  // pixel coords, and tile coords all can be scaled linearly.
+
   function degree2tile(lat, lng, zoom) {
-    // See http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
+
     var latRad = lat * Math.PI / 180;
     var n = Math.pow(2, zoom);
     var x = (lng + 180) / 360 * n;
@@ -3579,10 +3255,7 @@ methods.addRasterImage = function (uri, bounds, layerId, group, options) {
       x: x,
       y: y
     };
-  } // Given a range [from,to) and either one or two numbers, returns true if
-  // there is any overlap between [x,x1) and the range--or if x1 is omitted,
-  // then returns true if x is within [from,to).
-
+  }
 
   function overlap(from, to, x,
   /* optional */
@@ -3601,40 +3274,20 @@ methods.addRasterImage = function (uri, bounds, layerId, group, options) {
     }
 
     return null;
-  } // Our general strategy is to:
-  // 1. Load the data URI in an Image() object, so we can get its pixel
-  //    dimensions and the underlying image data. (We could have done this
-  //    by not encoding as PNG at all but just send an array of RGBA values
-  //    from the server, but that would inflate the JSON too much.)
-  // 2. Create a hidden canvas that we use just to extract the image data
-  //    from the Image (using Context2D.getImageData()).
-  // 3. Create a TileLayer.Canvas and add it to the map.
-  // We want to synchronously create and attach the TileLayer.Canvas (so an
-  // immediate call to clearRasters() will be respected, for example), but
-  // Image loads its data asynchronously. Fortunately we can resolve this
-  // by putting TileLayer.Canvas into async mode, which will let us create
-  // and attach the layer but have it wait until the image is loaded before
-  // it actually draws anything.
-  // These are the variables that we will populate once the image is loaded.
+  }
 
-
-  var imgData = null; // 1d row-major array, four [0-255] integers per pixel
+  var imgData = null;
 
   var imgDataMipMapper = null;
-  var w = null; // image width in pixels
+  var w = null;
 
-  var h = null; // image height in pixels
-  // We'll use this array to store callbacks that need to be invoked once
-  // imgData, w, and h have been resolved.
+  var h = null;
 
-  var imgDataCallbacks = []; // Consumers of imgData, w, and h can call this to be notified when data
-  // is available.
+  var imgDataCallbacks = [];
 
   function getImageData(callback) {
     if (imgData != null) {
-      // Must not invoke the callback immediately; it's too confusing and
-      // fragile to have a function invoke the callback *either* immediately
-      // or in the future. Better to be consistent here.
+
       setTimeout(function () {
         callback(imgData, w, h, imgDataMipMapper);
       }, 0);
@@ -3646,9 +3299,9 @@ methods.addRasterImage = function (uri, bounds, layerId, group, options) {
   var img = new Image();
 
   img.onload = function () {
-    // Save size
+
     w = img.width;
-    h = img.height; // Create a dummy canvas to extract the image data
+    h = img.height;
 
     var imgDataCanvas = document.createElement("canvas");
     imgDataCanvas.width = w;
@@ -3656,12 +3309,12 @@ methods.addRasterImage = function (uri, bounds, layerId, group, options) {
     imgDataCanvas.style.display = "none";
     document.body.appendChild(imgDataCanvas);
     var imgDataCtx = imgDataCanvas.getContext("2d");
-    imgDataCtx.drawImage(img, 0, 0); // Save the image data.
+    imgDataCtx.drawImage(img, 0, 0);
 
     imgData = imgDataCtx.getImageData(0, 0, w, h).data;
-    imgDataMipMapper = new _mipmapper2["default"](img); // Done with the canvas, remove it from the page so it can be gc'd.
+    imgDataMipMapper = new _mipmapper2["default"](img);
 
-    document.body.removeChild(imgDataCanvas); // Alert any getImageData callers who are waiting.
+    document.body.removeChild(imgDataCanvas);
 
     for (var i = 0; i < imgDataCallbacks.length; i++) {
       imgDataCallbacks[i](imgData, w, h, imgDataMipMapper);
@@ -3675,87 +3328,57 @@ methods.addRasterImage = function (uri, bounds, layerId, group, options) {
   var canvasTiles = _leaflet2["default"].gridLayer(Object.assign({}, options, {
     detectRetina: true,
     async: true
-  })); // NOTE: The done() function MUST NOT be invoked until after the current
-  // tick; done() looks in Leaflet's tile cache for the current tile, and
-  // since it's still being constructed, it won't be found.
-
+  }));
 
   canvasTiles.createTile = function (tilePoint, done) {
     var zoom = tilePoint.z;
 
     var canvas = _leaflet2["default"].DomUtil.create("canvas");
 
-    var error; // setup tile width and height according to the options
+    var error;
 
     var size = this.getTileSize();
     canvas.width = size.x;
     canvas.height = size.y;
     getImageData(function (imgData, w, h, mipmapper) {
       try {
-        // The Context2D we'll being drawing onto. It's always 256x256.
-        var ctx = canvas.getContext("2d"); // Convert our image data's top-left and bottom-right locations into
-        // x/y tile coordinates. This is essentially doing a spherical mercator
-        // projection, then multiplying by 2^zoom.
+
+        var ctx = canvas.getContext("2d");
 
         var topLeft = degree2tile(bounds[0][0], bounds[0][1], zoom);
-        var bottomRight = degree2tile(bounds[1][0], bounds[1][1], zoom); // The size of the image in x/y tile coordinates.
+        var bottomRight = degree2tile(bounds[1][0], bounds[1][1], zoom);
 
         var extent = {
           x: bottomRight.x - topLeft.x,
           y: bottomRight.y - topLeft.y
-        }; // Short circuit if tile is totally disjoint from image.
+        };
 
         if (!overlap(tilePoint.x, tilePoint.x + 1, topLeft.x, bottomRight.x)) return;
-        if (!overlap(tilePoint.y, tilePoint.y + 1, topLeft.y, bottomRight.y)) return; // The linear resolution of the tile we're drawing is always 256px per tile unit.
-        // If the linear resolution (in either direction) of the image is less than 256px
-        // per tile unit, then use nearest neighbor; otherwise, use the canvas's built-in
-        // scaling.
+        if (!overlap(tilePoint.y, tilePoint.y + 1, topLeft.y, bottomRight.y)) return;
 
         var imgRes = {
           x: w / extent.x,
           y: h / extent.y
-        }; // We can do the actual drawing in one of three ways:
-        // - Call drawImage(). This is easy and fast, and results in smooth
-        //   interpolation (bilinear?). This is what we want when we are
-        //   reducing the image from its native size.
-        // - Call drawImage() with imageSmoothingEnabled=false. This is easy
-        //   and fast and gives us nearest-neighbor interpolation, which is what
-        //   we want when enlarging the image. However, it's unsupported on many
-        //   browsers (including QtWebkit).
-        // - Do a manual nearest-neighbor interpolation. This is what we'll fall
-        //   back to when enlarging, and imageSmoothingEnabled isn't supported.
-        //   In theory it's slower, but still pretty fast on my machine, and the
-        //   results look the same AFAICT.
-        // Is imageSmoothingEnabled supported? If so, we can let canvas do
-        // nearest-neighbor interpolation for us.
+        };
 
         var smoothingProperty = getCanvasSmoothingProperty(ctx);
 
         if (smoothingProperty || imgRes.x >= 256 && imgRes.y >= 256) {
-          // Use built-in scaling
-          // Turn off anti-aliasing if necessary
+
           if (smoothingProperty) {
             ctx[smoothingProperty] = imgRes.x >= 256 && imgRes.y >= 256;
-          } // Don't necessarily draw with the full-size image; if we're
-          // downscaling, use the mipmapper to get a pre-downscaled image
-          // (see comments on Mipmapper class for why this matters).
-
+          }
 
           mipmapper.getBySize(extent.x * 256, extent.y * 256, function (mip) {
-            // It's possible that the image will go off the edge of the canvas--
-            // that's OK, the canvas should clip appropriately.
-            ctx.drawImage(mip, // Convert abs tile coords to rel tile coords, then *256 to convert
-            // to rel pixel coords
-            (topLeft.x - tilePoint.x) * 256, (topLeft.y - tilePoint.y) * 256, // Always draw the whole thing and let canvas clip; so we can just
-            // convert from size in tile coords straight to pixels
+
+            ctx.drawImage(mip,
+
+            (topLeft.x - tilePoint.x) * 256, (topLeft.y - tilePoint.y) * 256,
+
             extent.x * 256, extent.y * 256);
           });
         } else {
-          // Use manual nearest-neighbor interpolation
-          // Calculate the source image pixel coordinates that correspond with
-          // the top-left and bottom-right of this tile. (If the source image
-          // only partially overlaps the tile, we use max/min to limit the
-          // sourceStart/End to only reflect the overlapping portion.)
+
           var sourceStart = {
             x: Math.max(0, Math.floor((tilePoint.x - topLeft.x) * imgRes.x)),
             y: Math.max(0, Math.floor((tilePoint.y - topLeft.y) * imgRes.y))
@@ -3763,37 +3386,30 @@ methods.addRasterImage = function (uri, bounds, layerId, group, options) {
           var sourceEnd = {
             x: Math.min(w, Math.ceil((tilePoint.x + 1 - topLeft.x) * imgRes.x)),
             y: Math.min(h, Math.ceil((tilePoint.y + 1 - topLeft.y) * imgRes.y))
-          }; // The size, in dest pixels, that each source pixel should occupy.
-          // This might be greater or less than 1 (e.g. if x and y resolution
-          // are very different).
+          };
 
           var pixelSize = {
             x: 256 / imgRes.x,
             y: 256 / imgRes.y
-          }; // For each pixel in the source image that overlaps the tile...
+          };
 
           for (var row = sourceStart.y; row < sourceEnd.y; row++) {
             for (var col = sourceStart.x; col < sourceEnd.x; col++) {
-              // ...extract the pixel data...
+
               var i = (row * w + col) * 4;
               var r = imgData[i];
               var g = imgData[i + 1];
               var b = imgData[i + 2];
               var a = imgData[i + 3];
-              ctx.fillStyle = "rgba(" + [r, g, b, a / 255].join(",") + ")"; // ...calculate the corresponding pixel coord in the dest image
-              // where it should be drawn...
+              ctx.fillStyle = "rgba(" + [r, g, b, a / 255].join(",") + ")";
 
               var pixelPos = {
                 x: (col / imgRes.x + topLeft.x - tilePoint.x) * 256,
                 y: (row / imgRes.y + topLeft.y - tilePoint.y) * 256
-              }; // ...and draw a rectangle there.
+              };
 
-              ctx.fillRect(Math.round(pixelPos.x), Math.round(pixelPos.y), // Looks crazy, but this is necessary to prevent rounding from
-              // causing overlap between this rect and its neighbors. The
-              // minuend is the location of the next pixel, while the
-              // subtrahend is the position of the current pixel (to turn an
-              // absolute coordinate to a width/height). Yes, I had to look
-              // up minuend and subtrahend.
+              ctx.fillRect(Math.round(pixelPos.x), Math.round(pixelPos.y),
+
               Math.round(pixelPos.x + pixelSize.x) - Math.round(pixelPos.x), Math.round(pixelPos.y + pixelSize.y) - Math.round(pixelPos.y));
             }
           }
@@ -3819,8 +3435,7 @@ methods.clearImages = function () {
 };
 
 methods.addMeasure = function (options) {
-  // if a measureControl already exists, then remove it and
-  //   replace with a new one
+
   methods.removeMeasure.call(this);
   this.measureControl = _leaflet2["default"].control.measure(options);
   this.addControl(this.measureControl);
@@ -3883,8 +3498,7 @@ methods.addSelect = function (ctGroup) {
       onClick: function onClick(btn, map) {
         btn.state("select-inactive");
 
-        _this8._locationFilter.disable(); // If explicitly dismissed, clear the crosstalk selections
-
+        _this8._locationFilter.disable();
 
         _this8.layerManager.unbrush();
       }
@@ -3910,7 +3524,6 @@ methods.createMapPane = function (name, zIndex) {
   this.getPane(name).style.zIndex = zIndex;
 };
 
-
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./cluster-layer-store":1,"./crs_utils":3,"./dataframe":4,"./global/htmlwidgets":8,"./global/jquery":9,"./global/leaflet":10,"./global/shiny":12,"./mipmapper":16,"./util":17}],16:[function(require,module,exports){
 "use strict";
@@ -3925,19 +3538,12 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
-// This class simulates a mipmap, which shrinks images by powers of two. This
-// stepwise reduction results in "pixel-perfect downscaling" (where every
-// pixel of the original image has some contribution to the downscaled image)
-// as opposed to a single-step downscaling which will discard a lot of data
-// (and with sparse images at small scales can give very surprising results).
 var Mipmapper = /*#__PURE__*/function () {
   function Mipmapper(img) {
     _classCallCheck(this, Mipmapper);
 
     this._layers = [img];
-  } // The various functions on this class take a callback function BUT MAY OR MAY
-  // NOT actually behave asynchronously.
-
+  }
 
   _createClass(Mipmapper, [{
     key: "getBySize",
@@ -3949,8 +3555,7 @@ var Mipmapper = /*#__PURE__*/function () {
 
       var testNext = function testNext() {
         _this.getByIndex(i, function (img) {
-          // If current image is invalid (i.e. too small to be rendered) or
-          // it's smaller than what we wanted, return the last known good image.
+
           if (!img || img.width < desiredWidth || img.height < desiredHeight) {
             callback(lastImg);
             return;
@@ -3977,19 +3582,16 @@ var Mipmapper = /*#__PURE__*/function () {
 
       this.getByIndex(i - 1, function (prevImg) {
         if (!prevImg) {
-          // prevImg could not be calculated (too small, possibly)
+
           callback(null);
           return;
         }
 
         if (prevImg.width < 2 || prevImg.height < 2) {
-          // Can't reduce this image any further
+
           callback(null);
           return;
-        } // If reduce ever becomes truly asynchronous, we should stuff a promise or
-        // something into this._layers[i] before calling this.reduce(), to prevent
-        // redundant reduce operations from happening.
-
+        }
 
         _this2.reduce(prevImg, function (reducedImg) {
           _this2._layers[i] = reducedImg;
@@ -4021,7 +3623,6 @@ var Mipmapper = /*#__PURE__*/function () {
 }();
 
 exports["default"] = Mipmapper;
-
 
 },{}],17:[function(require,module,exports){
 "use strict";
@@ -4069,18 +3670,17 @@ function asArray(value) {
   if (value instanceof Array) return value;else return [value];
 }
 
-
 },{}]},{},[13]);
 </script>
 <script>(function(root, factory) {
 	if (typeof define === 'function' && define.amd) {
-		// AMD. Register as an anonymous module.
+
 		define(['leaflet'], factory);
 	} else if (typeof modules === 'object' && module.exports) {
-		// define a Common JS module that relies on 'leaflet'
+
 		module.exports = factory(require('leaflet'));
 	} else {
-		// Assume Leaflet is loaded into global object L already
+
 		factory(L);
 	}
 }(this, function(L) {
@@ -4104,7 +3704,6 @@ function asArray(value) {
 				options: providers[providerName].options
 			};
 
-			// overwrite values in provider from variant.
 			if (variantName && 'variants' in providers[providerName]) {
 				if (!(variantName in providers[providerName].variants)) {
 					throw 'No such variant of ' + providerName + ' (' + variantName + ')';
@@ -4124,8 +3723,6 @@ function asArray(value) {
 				};
 			}
 
-			// replace attribution placeholders with their values from toplevel provider attribution,
-			// recursively
 			var attributionReplacer = function(attr) {
 				if (attr.indexOf('{attribution.') === -1) {
 					return attr;
@@ -4139,7 +3736,6 @@ function asArray(value) {
 			};
 			provider.options.attribution = attributionReplacer(provider.options.attribution);
 
-			// Compute final options combining provider options with any user overrides
 			var layerOpts = L.Util.extend({}, provider.options, options);
 			L.TileLayer.prototype.initialize.call(this, provider.url, layerOpts);
 		}
@@ -4210,8 +3806,7 @@ function asArray(value) {
 				attribution:
 					'&copy; <a href="http://www.maptilesapi.com/">MapTiles API</a>, {attribution.OpenStreetMap}',
 				variant: 'en/map/v1',
-				// Get your own MapTiles API access token here : https://www.maptilesapi.com/
-				// NB : this is a demonstration key that comes with no guarantee and not to be used in production
+
 				apikey: '<insert your api key here>',
 				maxZoom: 19
 			},
@@ -4476,8 +4071,7 @@ function asArray(value) {
 				minZoom: 0,
 				maxZoom: 22,
 				variant: 'jawg-streets',
-				// Get your own Jawg access token here : https://www.jawg.io/lab/
-				// NB : this is a demonstration key that comes with no guarantee
+
 				accessToken: '<insert your access token here>',
 			},
 			variants: {
@@ -4688,15 +4282,15 @@ function asArray(value) {
 			 * Version 3 deprecates the app_id and app_code access in favor of apiKey
 			 */
 			url:
-				'https://maps.hereapi.com/v3/base/mc/' + // new base url for HERE maptile v3 api
-				'{z}/{x}/{y}/{format}?style={variant}&size={size}' + // slightly modified parameters
-				'&apiKey={app_id}&lg={language}', // replacing app-id with apikey
+				'https://maps.hereapi.com/v3/base/mc/' +
+				'{z}/{x}/{y}/{format}?style={variant}&size={size}' +
+				'&apiKey={app_id}&lg={language}',
 			options: {
 				attribution:
 					'Map &copy; 1987-' + new Date().getFullYear() + ' <a href="http://platform.here.com">HERE</a>',
 				subdomains: '1234',
 				mapID: 'newest',
-				apiKey: '<insert your apiKey here>', // switching from appid and appcode to apikey
+				apiKey: '<insert your apiKey here>',
 				base: 'base',
 				variant: 'explore.day',
 				maxZoom: 20,
@@ -4850,7 +4444,7 @@ function asArray(value) {
 			variants: {
 				basemap: {
 					options: {
-						maxZoom: 20, // currently only in Vienna
+						maxZoom: 20,
 						variant: 'geolandbasemap'
 					}
 				},
@@ -4878,7 +4472,7 @@ function asArray(value) {
 				},
 				orthofoto: {
 					options: {
-						maxZoom: 20, // currently only in Vienna
+						maxZoom: 20,
 						variant: 'bmaporthofoto30cm',
 						format: 'jpeg'
 					}
@@ -4960,14 +4554,7 @@ function asArray(value) {
 			}
 		},
 		NLS: {
-			// NLS maps are copyright National library of Scotland.
-			// http://maps.nls.uk/projects/subscription-api
-			// Please contact NLS for anything other than non-commercial low volume usage
-			//
-			// Map sources: Ordnance Survey 1:1m to 1:63K, 1880s-1961
-			//   z0-9  - 1:1m
-			//  z10-11 - quarter inch (1:253440)
-			//  z12-18 - one inch (1:63360)
+
 			url: 'https://api.maptiler.com/tiles/{variant}/{z}/{x}/{y}.jpg?key={apikey}',
 			options: {
 				attribution: '<a href="http://maps.nls.uk/projects/subscription-api">National Library of Scotland Historic Maps</a>',
@@ -4987,15 +4574,13 @@ function asArray(value) {
 			}
 		},
 		JusticeMap: {
-			// Justice Map (http://www.justicemap.org/)
-			// Visualize race and income data for your community, county and country.
-			// Includes tools for data journalists, bloggers and community activists.
+
 			url: 'https://www.justicemap.org/tile/{size}/{variant}/{z}/{x}/{y}.png',
 			options: {
 				attribution: '<a href="http://www.justicemap.org/terms.php">Justice Map</a>',
-				// one of 'county', 'tract', 'block'
+
 				size: 'county',
-				// Bounds for USA, including Alaska and Hawaii
+
 				bounds: [[14, -180], [72, -56]]
 			},
 			variants: {
