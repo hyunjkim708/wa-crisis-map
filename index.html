@@ -1,25 +1,461 @@
 <!DOCTYPE html>
-<!--
-  PROPOSED redirect page for the retired personal GitHub Pages site
-  (hyunjkim708.github.io/wa-crisis-map). Deploy to that repo so old links
-  forward to the official BHCore map. NOT YET DEPLOYED (Jun to approve).
--->
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0; url=https://bhcore.github.io/CrisisMap/">
-  <link rel="canonical" href="https://bhcore.github.io/CrisisMap/">
-  <title>WA Crisis Response Landscape Map has moved</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 40rem;
-           margin: 15vh auto; padding: 0 1.5rem; line-height: 1.6; color: #222; }
-    a { color: #1a5276; }
-  </style>
+<meta charset="UTF-8"><meta name="robots" content="noindex,nofollow"><meta name="description" content="An interactive map of Washington State&#x27;s field-based mobile crisis and co-response programs, crisis receiving facilities, Recovery Navigator Providers, and Designated Crisis Responders. Produced by BHCore, UW School of Social Work." /><meta name="author" content="BHCore, University of Washington School of Social Work" /><meta name="copyright" content="&copy; 2026 BHCore, University of Washington School of Social Work" /><meta property="og:title" content="Washington State Crisis Response Landscape" /><meta property="og:description" content="Interactive map of WA field-based mobile crisis and co-response programs, crisis facilities, and allied services. BHCore, UW School of Social Work, 2026." />
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Washington State Crisis Response Landscape</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+html,body,#map{margin:0;padding:0;height:100vh;width:100vw}
+#toolbar-wrap{position:absolute;top:10px;left:10px;z-index:1000}
+.hl-county:hover{fill:#777!important;fill-opacity:0.22!important;stroke:#333!important;stroke-width:2!important;cursor:pointer}
+.hl-area:hover{stroke:#111!important;stroke-width:3!important;fill-opacity:0.6!important;cursor:pointer}
+.leaflet-marker-icon.fac{display:none}
+.covtype{display:none}
+.covtype_cty{display:none}
+#map-tip{display:none;position:fixed;z-index:99999;background:#222;color:#fff;font-size:11px;line-height:1.45;padding:7px 9px;border-radius:4px;width:250px;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none}
+</style>
 </head>
 <body>
-  <h1>This map has moved</h1>
-  <p>The WA Crisis Response Landscape Map is now hosted by BHCore at:</p>
-  <p><a href="https://bhcore.github.io/CrisisMap/">https://bhcore.github.io/CrisisMap/</a></p>
-  <p>You will be redirected automatically. If not, follow the link above.</p>
-</body>
+<div id="map"></div>
+<div id="toolbar-wrap">
+<div id='map-toolbar' style='background:#fff;padding:10px 12px;border-radius:6px;box-shadow:0 1px 6px rgba(0,0,0,.3);font-family:sans-serif;max-height:82vh;overflow:auto;width:270px'>
+  <div style='font-weight:700;font-size:16px;margin-bottom:4px'>WA Crisis Response Map</div>
+  <div style='font-weight:600;font-size:13px;color:#444;margin:6px 0 2px'>MAP OVERLAY</div>
+  <select id='overlay-select' data-groups='BH-ASO Regions|Regional Crisis Lines|PSAP Boundaries|Legislative Districts|Tribal Lands|Rural/Urban Area (RUCA)' style='width:100%;font-size:14px;padding:4px'><option value='None'>None</option><option value='BH-ASO Regions'>BH-ASO Regions</option><option value='Regional Crisis Lines'>Regional Crisis Lines</option><option value='PSAP Boundaries'>PSAP Boundaries</option><option value='Legislative Districts'>Legislative Districts</option><option value='Tribal Lands'>Tribal Lands</option><option value='Rural/Urban Area (RUCA)'>Rural/Urban Area (RUCA)</option></select>
+  <div id='bhaso-opacity-ctrl' style='display:none;margin:3px 0 4px'><div style='display:flex;justify-content:space-between;font-size:12px;color:#555;margin:2px 0'><span>Opacity</span><span id='bhaso-opacity-val'>35%</span></div><input type='range' id='bhaso-opacity' min='0' max='100' value='35' style='width:100%;cursor:pointer;margin:1px 0'></div><div id='ruca-opacity-ctrl' style='display:none;margin:3px 0 4px'><div style='display:flex;justify-content:space-between;font-size:12px;color:#555;margin:2px 0'><span>Opacity</span><span id='ruca-opacity-val'>35%</span></div><input type='range' id='ruca-opacity' min='0' max='100' value='35' style='width:100%;cursor:pointer;margin:1px 0'></div><div id='psap-opacity-ctrl' style='display:none;margin:3px 0 4px'><div style='display:flex;justify-content:space-between;font-size:12px;color:#555;margin:2px 0'><span>Opacity</span><span id='psap-opacity-val'>35%</span></div><input type='range' id='psap-opacity' min='0' max='100' value='35' style='width:100%;cursor:pointer;margin:1px 0'></div><div id='leg-opacity-ctrl' style='display:none;margin:3px 0 4px'><div style='display:flex;justify-content:space-between;font-size:12px;color:#555;margin:2px 0'><span>Opacity</span><span id='leg-opacity-val'>35%</span></div><input type='range' id='leg-opacity' min='0' max='100' value='35' style='width:100%;cursor:pointer;margin:1px 0'></div><div id='rcl-opacity-ctrl' style='display:none;margin:3px 0 4px'><div style='display:flex;justify-content:space-between;font-size:12px;color:#555;margin:2px 0'><span>Opacity</span><span id='rcl-opacity-val'>35%</span></div><input type='range' id='rcl-opacity' min='0' max='100' value='35' style='width:100%;cursor:pointer;margin:1px 0'></div>
+  <div style='font-weight:600;font-size:13px;color:#444;margin:8px 0 2px'>CRISIS CARE PROGRAM</div>
+  <div style='font-weight:600;font-size:13px;color:#666;margin:4px 0 1px'>Someone to Respond</div><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-ptype='LE co-response' checked><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#2166ac;border:1px solid #555'></span> LE co-response<span class='tip-anchor' style='display:inline-block;margin-left:4px;cursor:help;color:#888;font-size:11px;vertical-align:middle' data-tip="Officer plus behavioral health professional. Well suited to active or in-progress situations involving involuntary treatment, safety concerns, or a potential criminal element. Short and long term follow up.">&#9432;</span></label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-ptype='Fire/EMS co-response' checked><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#d7301f;border:1px solid #555'></span> Fire/EMS co-response<span class='tip-anchor' style='display:inline-block;margin-left:4px;cursor:help;color:#888;font-size:11px;vertical-align:middle' data-tip="Firefighter or EMT plus behavioral health professional. Well suited to situations involving overdose, self harm, and frequent 911 use related to behavioral health and co-occurring medical needs. Short and long term follow up.">&#9432;</span></label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-ptype='Alternative / community' checked><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#6a51a3;border:1px solid #555'></span> Alternative / community<span class='tip-anchor' style='display:inline-block;margin-left:4px;cursor:help;color:#888;font-size:11px;vertical-align:middle' data-tip="Responds to lower-acuity 911 calls or referrals from first responders, not housed in law enforcement or fire/EMS. Short and long term follow up.">&#9432;</span></label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-ptype='MRRCT' checked><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#1a9850;border:1px solid #555'></span> MRRCT / <svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' style='vertical-align:middle'><polygon points='12,2 14.35,8.76 21.51,8.91 15.80,13.24 17.88,20.09 12,16 6.12,20.09 8.20,13.24 2.49,8.91 9.65,8.76' fill='#1a9850' stroke='#1a9850' stroke-width='1' stroke-linejoin='round'/></svg> CBCT<span class='tip-anchor' style='display:inline-block;margin-left:4px;cursor:help;color:#888;font-size:11px;vertical-align:middle' data-tip="Mobile Rapid Response Crisis Team (MRRCT): Behavioral-health-led, dispatched without law enforcement. Best suited to non-violent crises with no medical or criminal element, often the least escalatory option available. Operates under a confidential intervention model (per WAC, RCW, and 42 CFR); unlike co-response, teams do not collect identifying information from individuals at the scene.
+
+Community-Based Crisis Team (CBCT): Same care level and intervention model as MRRCT, but housed in EMS, fire, public health, a medical facility, a nonprofit, or a city/county entity rather than law enforcement. Broader personnel mix extends crisis response capacity, especially in rural communities.">&#9432;</span></label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-ptype='MRSS - Youth' id='mrss-cb-respond' checked><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#f16913;border:1px solid #555'></span> MRSS - Youth<span class='tip-anchor' style='display:inline-block;margin-left:4px;cursor:help;color:#888;font-size:11px;vertical-align:middle' data-tip="Mobile Response and Stabilization Services (MRSS; Youth): Behavioral-health-led, dispatched without law enforcement. Best suited to non-violent crises with no medical or criminal element, often the least escalatory option available. Not a transport model, the team brings stabilization to the youth in-home or in the community, functioning as hospital and ED diversion. Provides a continuous episode of care lasting from days to weeks. Operates under the same confidentiality standards as MRRCT (WAC, RCW, 42 CFR).">&#9432;</span></label><div style='font-size:11px;color:#555;margin:3px 0 0 2px;line-height:1.4'>If yours is missing or marked &ldquo;no information available,&rdquo; contact us to be added: <a href='mailto:bhcore@uw.edu' style='color:#2166ac'>bhcore@uw.edu</a>.</div><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-group='Designated Crisis Responders'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#009e8f;border:1px solid #555'></span> Designated Crisis Responders</label>
+  <div style='font-weight:600;font-size:13px;color:#666;margin:5px 0 1px'>A Safe Place for Help</div><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-ptype='MRSS - Youth' id='mrss-cb-place' checked><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#f16913;border:1px solid #555'></span> MRSS - Youth</label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-cert='CRC'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#436978;border:1px solid #555'></span> Crisis Relief Center (CRC)</label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-cert='CSU'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#1a79c2;border:1px solid #555'></span> Crisis Stabilization Unit (CSU)</label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-group='Youth Navigator Programs'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#f39c12;border:1px solid #555'></span> Youth Navigator Programs</label>
+  <div style='font-weight:600;font-size:13px;color:#666;margin:5px 0 1px'>Recovery and Care</div><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-group='Recovery Navigator Providers'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#8e44ad;border:1px solid #555'></span> Recovery Navigator Providers</label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-cert='ET'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#7b7b7b;border:1px solid #555'></span> Evaluation &amp; Treatment (E&amp;T)</label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-cert='WM'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#7b7b7b;border:1px solid #555'></span> Withdrawal Management (Detox)</label>
+  <div style='font-weight:600;font-size:13px;color:#444;margin:8px 0 2px'>POPULATION DENSITY</div><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-group='Population density'>Population density</label>
+  <div style='font-weight:600;font-size:13px;color:#444;margin:8px 0 2px'>COVERAGE BY PROGRAM TYPE</div><div style='font-size:12px;color:#666;margin:3px 0 1px'>Show places served by:</div><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' id='covby-selectall'><b>Select all</b></label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-covtype='LE'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#2166ac;border:1px solid #555'></span> LE co-response</label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-covtype='Fire'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#d7301f;border:1px solid #555'></span> Fire/EMS co-response</label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-covtype='Alt'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#6a51a3;border:1px solid #555'></span> Alternative/community</label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-covtype='AMCT'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#1a9850;border:1px solid #555'></span> MRRCT</label><label style='display:flex;align-items:center;gap:6px;margin:3px 0;font-size:14px;cursor:pointer'><input type='checkbox' data-covtype='YMCT'><span style='display:inline-block;width:13px;height:13px;border-radius:50%;background:#f16913;border:1px solid #555'></span> MRSS - Youth</label><div style='font-size:12px;color:#666;margin:3px 0 1px'>When multiple checked:</div><select id='covby-mode' style='width:100%;font-size:14px;padding:3px'><option value='any'>Any (has at least one)</option><option value='all'>All (has every checked type)</option></select><div style='font-size:11px;color:#555;margin:5px 0 1px'><div style='display:flex;align-items:center;gap:4px;margin:1px 0'><span style='width:14px;height:14px;background:#8856a7;border:1px solid #999;display:inline-block;flex-shrink:0'></span>has the selected program(s)</div><div style='display:flex;align-items:center;gap:4px;margin:1px 0'><span style='width:14px;height:14px;background:repeating-linear-gradient(45deg,#f0d878,#f0d878 2px,#9a7d0a 2px,#9a7d0a 3px);border:1px solid #999;display:inline-block;flex-shrink:0'></span>no such program</div></div>
+</div>
+<div id='map-tip'></div></div>
+<div id="legend-density" style="display:none;position:absolute;bottom:30px;right:10px;z-index:1000;background:#fff;padding:8px 10px;border-radius:5px;box-shadow:0 1px 5px rgba(0,0,0,.3);font-size:11px;font-family:sans-serif;min-width:130px">
+  <div style="font-weight:600;margin-bottom:4px">People / sq mi<br><small style="font-weight:400">(log scale)</small></div>
+  <div style="background:linear-gradient(to top,#ffffe0,#feb24c,#bd0026);width:14px;height:80px;display:inline-block;vertical-align:middle;border:1px solid #ccc;margin-right:6px"></div>
+  <div style="display:inline-block;vertical-align:middle;line-height:1.6"><div>High</div><div style="margin-top:50px">Low</div></div>
+</div>
+<div id="legend-ruca" style="display:none;position:absolute;bottom:30px;right:10px;z-index:1000;background:#fff;padding:8px 10px;border-radius:5px;box-shadow:0 1px 5px rgba(0,0,0,.3);font-size:11px;font-family:sans-serif">
+  <div style="font-weight:600;margin-bottom:5px">Rural/Urban Area (RUCA)</div><div style='display:flex;align-items:center;gap:6px;margin:2px 0'><span style='width:14px;height:14px;background:#8c510a;border:1px solid #999;display:inline-block;flex-shrink:0'></span>Small town/rural</div><div style='display:flex;align-items:center;gap:6px;margin:2px 0'><span style='width:14px;height:14px;background:#dfc27d;border:1px solid #999;display:inline-block;flex-shrink:0'></span>Large town</div><div style='display:flex;align-items:center;gap:6px;margin:2px 0'><span style='width:14px;height:14px;background:#80cdc1;border:1px solid #999;display:inline-block;flex-shrink:0'></span>Suburban</div><div style='display:flex;align-items:center;gap:6px;margin:2px 0'><span style='width:14px;height:14px;background:#018571;border:1px solid #999;display:inline-block;flex-shrink:0'></span>Urban</div>
+</div>
+<div id="legend-rcl" style="display:none;position:absolute;bottom:30px;right:10px;z-index:1000;background:#fff;padding:8px 10px;border-radius:5px;box-shadow:0 1px 5px rgba(0,0,0,.3);font-size:11px;font-family:sans-serif">
+  <div style="font-weight:600;margin-bottom:5px">Regional Crisis Lines (988 hub)</div><div style='display:flex;align-items:center;gap:6px;margin:2px 0'><span style='width:14px;height:14px;background:#f4a27b;border:1px solid #999;display:inline-block;flex-shrink:0'></span>Volunteers of America Western Washington</div><div style='display:flex;align-items:center;gap:6px;margin:2px 0'><span style='width:14px;height:14px;background:#80cdc1;border:1px solid #999;display:inline-block;flex-shrink:0'></span>Crisis Connections</div><div style='display:flex;align-items:center;gap:6px;margin:2px 0'><span style='width:14px;height:14px;background:#9b72b0;border:1px solid #999;display:inline-block;flex-shrink:0'></span>Olympic Health & Recovery Services</div><div style='display:flex;align-items:center;gap:6px;margin:2px 0'><span style='width:14px;height:14px;background:#7bafd4;border:1px solid #999;display:inline-block;flex-shrink:0'></span>Frontier Behavioral Health</div>
+</div>
+<div id="map-tip"></div>
+<svg width="0" height="0" style="position:absolute"><defs>
+<pattern id="coverageHatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)"><rect width="6" height="6" fill="#F1EFE8"></rect><line x1="0" y1="0" x2="0" y2="6" stroke="#888780" stroke-width="1"></line></pattern>
+<pattern id="covHatch" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)"><rect width="5" height="5" fill="#f0d878"></rect><line x1="0" y1="0" x2="0" y2="5" stroke="#9a7d0a" stroke-width="1.8"></line></pattern>
+<pattern id="covHatchCty" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)"><rect width="9" height="9" fill="#faf3c0"></rect><line x1="0" y1="0" x2="0" y2="9" stroke="#c9a830" stroke-width="1"></line></pattern>
+</defs></svg>
+<script>
+var map = L.map("map", {minZoom:6, zoomSnap:0.25, zoomDelta:0.5, zoomControl:false});
+L.control.zoom({position:"topright"}).addTo(map);
+L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+  {attribution:"Tiles &copy; Esri", maxZoom:16}
+).addTo(map);
+map.fitBounds([[44.8520,-126.4494],[49.6941,-115.3288]]);
+map.createPane("cty_click");   map.getPane("cty_click").style.zIndex   = 405;
+map.createPane("polys");       map.getPane("polys").style.zIndex       = 410;
+map.createPane("covby_cty");   map.getPane("covby_cty").style.zIndex   = 415;
+map.createPane("cbound");      map.getPane("cbound").style.zIndex      = 415;
+map.createPane("covby");       map.getPane("covby").style.zIndex       = 416;
+map.createPane("dens_overlay");map.getPane("dens_overlay").style.zIndex= 417;
+map.createPane("ruca_bounds"); map.getPane("ruca_bounds").style.zIndex = 418;
+map.createPane("bhaso_fill");  map.getPane("bhaso_fill").style.zIndex  = 419;
+map.createPane("rcl_fill");    map.getPane("rcl_fill").style.zIndex    = 420;
+map.createPane("psap_fill");   map.getPane("psap_fill").style.zIndex   = 421;
+map.createPane("leg_fill");    map.getPane("leg_fill").style.zIndex    = 422;
+map.createPane("dots");        map.getPane("dots").style.zIndex        = 423;
+var layerGroups = {};
+function getOrCreate(name){
+  if(!layerGroups[name]) layerGroups[name]=L.layerGroup();
+  return layerGroups[name];
+}
+// Called after each async fetch: if the checkbox/select already wants this group, add it now.
+function syncGroup(name){
+  var cbs=[].slice.call(document.querySelectorAll("input[data-group]"));
+  var cb=cbs.filter(function(el){return el.getAttribute("data-group")===name;})[0];
+  if(cb && cb.checked && layerGroups[name] && !map.hasLayer(layerGroups[name]))
+    map.addLayer(layerGroups[name]);
+}
+function syncOverlay(name){
+  var sel=document.getElementById("overlay-select");
+  if(sel && sel.value===name && layerGroups[name] && !map.hasLayer(layerGroups[name]))
+    map.addLayer(layerGroups[name]);
+}
+var DATA_VER="20261021";var PROG_COLORS={"LE co-response":"#2166ac","Fire/EMS co-response":"#d7301f","Alternative / community":"#6a51a3","MRRCT":"#1a9850","MRSS - Youth":"#f16913"};var RUCA_LEVELS=["Small town/rural","Large town","Suburban","Urban"];var RUCA_COLORS=["#8c510a","#dfc27d","#80cdc1","#018571"];var RCL_LEVELS=["Volunteers of America Western Washington","Crisis Connections","Olympic Health & Recovery Services","Frontier Behavioral Health"];var RCL_COLORS=["#f4a27b","#80cdc1","#9b72b0","#7bafd4"];
+function ylOrRd(t){
+  var c=[[255,255,204],[255,237,160],[254,217,118],[254,178,76],[253,141,60],[252,78,42],[227,26,28],[189,0,38],[128,0,38]];
+  var i=Math.min(Math.floor(t*(c.length-1)),c.length-2),f=t*(c.length-1)-i;
+  return "rgb("+Math.round(c[i][0]+(c[i+1][0]-c[i][0])*f)+","+Math.round(c[i][1]+(c[i+1][1]-c[i][1])*f)+","+Math.round(c[i][2]+(c[i+1][2]-c[i][2])*f)+")";
+}
+var densMin=null,densMax=null;
+fetch("data/meta.json?v="+DATA_VER).then(function(r){return r.json();}).then(function(m){densMin=m.dens_min;densMax=m.dens_max;});
+
+// Counties: click popup + always-on boundary
+fetch("data/counties.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  L.geoJSON(data,{pane:"cty_click",style:{fill:true,fillColor:"#777",fillOpacity:0,stroke:false,weight:0},
+    className:"hl-county",
+    onEachFeature:function(f,l){
+      l.bindPopup(f.properties.county_landing_popup||"");
+      l.bindTooltip("<b>"+(f.properties.county_name||"")+" County</b> — click for programs",{sticky:true});
+    }}).addTo(map);
+  L.geoJSON(data,{pane:"cbound",style:{fill:false,color:"#777",weight:1,opacity:0.7,smoothFactor:0.5,interactive:false}}).addTo(map);
+});
+
+// BH-ASO
+var SET3=["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd"];
+fetch("data/bhaso.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  var regions=[...new Set(data.features.map(function(f){return f.properties.bhaso;}))];
+  getOrCreate("BH-ASO Regions");
+  L.geoJSON(data,{pane:"bhaso_fill",className:"hl-area",
+    style:function(f){var i=regions.indexOf(f.properties.bhaso);return{fillColor:SET3[i%SET3.length],fillOpacity:0.35,color:"#555",weight:1.5,smoothFactor:0.5};},
+    onEachFeature:function(f,l){
+      l.bindPopup(f.properties.bhaso_popup||"");
+      l.bindTooltip("<b>"+(f.properties.bhaso||"")+"</b> BH-ASO — click for details",{sticky:true});
+    }}).addTo(getOrCreate("BH-ASO Regions"));
+});
+
+// PSAP
+fetch("data/psap.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  getOrCreate("PSAP Boundaries");
+  L.geoJSON(data,{pane:"psap_fill",className:"hl-area",
+    style:{fillColor:"#8c564b",fillOpacity:0.35,color:"#8c564b",weight:1.5},
+    onEachFeature:function(f,l){
+      l.bindPopup(f.properties.cpopup||"");
+      l.bindTooltip("PSAP: "+(f.properties.psap_name||""),{sticky:true});
+    }}).addTo(getOrCreate("PSAP Boundaries"));
+  syncOverlay("PSAP Boundaries");
+});
+
+// Legislative Districts
+fetch("data/leg.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  getOrCreate("Legislative Districts");
+  L.geoJSON(data,{pane:"leg_fill",className:"hl-area",
+    style:{fillColor:"#1f77b4",fillOpacity:0.35,color:"#1f77b4",weight:1},
+    onEachFeature:function(f,l){l.bindTooltip("Legislative District "+(f.properties.DISTRICT||""),{sticky:true});}
+  }).addTo(getOrCreate("Legislative Districts"));
+  syncOverlay("Legislative Districts");
+});
+
+// Tribal Lands
+fetch("data/tribal.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  getOrCreate("Tribal Lands");
+  L.geoJSON(data,{pane:"polys",className:"hl-area",
+    style:{fillColor:"#2ca02c",fillOpacity:0.3,color:"#2ca02c",weight:1},
+    onEachFeature:function(f,l){l.bindTooltip("Tribal land: "+(f.properties.TRIBAL_NM||""),{sticky:true});}
+  }).addTo(getOrCreate("Tribal Lands"));
+  syncOverlay("Tribal Lands");
+});
+
+// Population Density
+fetch("data/density.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  getOrCreate("Population density");
+  L.geoJSON(data,{pane:"dens_overlay",
+    style:function(f){
+      var v=f.properties.density||0;
+      var t=(densMin!==null&&densMax!==null&&densMax>densMin)?Math.max(0,Math.min(1,(Math.log1p(v)-densMin)/(densMax-densMin))):0.5;
+      return{fillColor:ylOrRd(t),fillOpacity:0.4,color:null,weight:0,smoothFactor:1};
+    },
+    onEachFeature:function(f,l){l.bindPopup(f.properties.dpop||"");}
+  }).addTo(getOrCreate("Population density"));
+  syncGroup("Population density");
+});
+
+// RUCA
+fetch("data/ruca.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  getOrCreate("Rural/Urban Area (RUCA)");
+  L.geoJSON(data,{pane:"ruca_bounds",
+    style:function(f){var i=RUCA_LEVELS.indexOf(f.properties.ruca_label);return{fillColor:RUCA_COLORS[i]||"#ccc",fillOpacity:0.35,color:"#555",weight:0.5};}
+  }).addTo(getOrCreate("Rural/Urban Area (RUCA)"));
+  syncOverlay("Rural/Urban Area (RUCA)");
+});
+
+// Regional Crisis Lines
+fetch("data/rcl.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  getOrCreate("Regional Crisis Lines");
+  L.geoJSON(data,{pane:"rcl_fill",className:"hl-area",
+    style:function(f){var i=RCL_LEVELS.indexOf(f.properties.hub_988);return{fillColor:RCL_COLORS[i]||"#aaa",fillOpacity:0.35,color:"#555",weight:1.5,smoothFactor:0.5};},
+    onEachFeature:function(f,l){
+      l.bindPopup(f.properties.rcl_popup||"");
+      l.bindTooltip("<b>988 Hub:</b> "+(f.properties.hub_988||""),{sticky:true});
+    }}).addTo(getOrCreate("Regional Crisis Lines"));
+  syncOverlay("Regional Crisis Lines");
+});
+
+// Coverage-by-type: place polygons (grouped by cls)
+var COVBY_COLOR   = "#8856a7";
+var COVBY_CTY_COV = "#c4a0d8";
+var COVBY_CTY_GAP = "#f0d878";
+fetch("data/coverage_place.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  var byCls={};
+  data.features.forEach(function(f){
+    var c=f.properties.cls||"";
+    if(!byCls[c]) byCls[c]=[];
+    byCls[c].push(f);
+  });
+  Object.keys(byCls).forEach(function(cls){
+    var fc={type:"FeatureCollection",features:byCls[cls]};
+    L.geoJSON(fc,{
+      pane:"covby",
+      style:{fillColor:COVBY_COLOR,fillOpacity:0.7,color:"#fff",weight:0.4,smoothFactor:0.5},
+      onEachFeature:function(f,l){
+        l.bindPopup(f.properties.cpopup||"");
+        l.bindTooltip("<b>"+(f.properties.NAME||"")+"</b>",{sticky:true});
+        l.on("add",function(){
+          var el=l.getElement&&l.getElement();
+          if(el){ el.setAttribute("class",(el.getAttribute("class")||"")+" hl-area "+cls); }
+        });
+      }
+    }).addTo(map);
+  });
+});
+
+// Coverage-by-type: county polygons (grouped by cls)
+fetch("data/coverage_county.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  var byCls={};
+  data.features.forEach(function(f){
+    var c=f.properties.cls||"";
+    if(!byCls[c]) byCls[c]=[];
+    byCls[c].push(f);
+  });
+  Object.keys(byCls).forEach(function(cls){
+    var fc={type:"FeatureCollection",features:byCls[cls]};
+    var hasCov=cls.indexOf("t_")>=0;
+    L.geoJSON(fc,{
+      pane:"covby_cty",
+      style:{fillColor:hasCov?COVBY_CTY_COV:COVBY_CTY_GAP,fillOpacity:0.25,
+             color:hasCov?"#8856a7":"#9a7d0a",weight:0.6,smoothFactor:0.3},
+      onEachFeature:function(f,l){
+        l.bindPopup(f.properties.cpopup||"");
+        l.bindTooltip("<b>"+(f.properties.county_name||"")+" County</b>",{sticky:true});
+        l.on("add",function(){
+          var el=l.getElement&&l.getElement();
+          if(el){ el.setAttribute("class",(el.getAttribute("class")||"")+" "+cls); }
+        });
+      }
+    }).addTo(map);
+  });
+});
+
+// Coverage click: always-on transparent place layer
+fetch("data/coverage_click.geojson?v="+DATA_VER).then(function(r){return r.json();}).then(function(data){
+  L.geoJSON(data,{
+    pane:"covby",
+    style:{fill:true,fillColor:"#000",fillOpacity:0,stroke:true,color:"#bbb",weight:0.4,opacity:0.6,smoothFactor:0.5},
+    onEachFeature:function(f,l){
+      l.bindPopup(f.properties.cpopup||"");
+      l.bindTooltip("<b>"+(f.properties.NAME||"")+"</b> — click for programs",{sticky:true});
+    }
+  }).addTo(map);
+});
+
+// Coverage CSS filter
+var covStyle=document.createElement("style"); document.head.appendChild(covStyle);
+covStyle.textContent=".covtype{display:none!important} .covtype_cty{display:none!important}";
+function updateCovFilter(){
+  var bar=document.getElementById("map-toolbar"); if(!bar) return;
+  var checked=[].slice.call(bar.querySelectorAll("input[data-covtype]:checked")).map(function(el){return el.dataset.covtype;});
+  var mode=(bar.querySelector("#covby-mode")||{}).value||"any";
+  if(checked.length===0){ covStyle.textContent=".covtype{display:none!important} .covtype_cty{display:none!important}"; return; }
+  var types=checked.map(function(t){return "t_"+t;});
+  function matchSels(pfx){ return types.map(function(t){return "."+pfx+"."+t;}).join(mode==="all"?"":",")}
+  var matchSel=matchSels("covtype"), matchSelCty=matchSels("covtype_cty");
+  covStyle.textContent =
+    ".covtype{display:inline!important;fill:url(#covHatch)!important;fill-opacity:0.9!important;stroke:#9a7d0a!important;stroke-width:0.8!important} "+
+    matchSel+"{fill:#8856a7!important;fill-opacity:0.7!important;stroke:#fff!important;stroke-width:0.4!important} "+
+    ".covtype_cty{display:inline!important;fill:url(#covHatchCty)!important;fill-opacity:0.9!important;stroke:#c9a830!important;stroke-width:0.6!important} "+
+    matchSelCty+"{fill:"+COVBY_CTY_COV+"!important;fill-opacity:0.9!important;stroke:#8856a7!important;stroke-width:0.6!important}";
+}
+
+// Pin icon helper (SVG teardrop)
+function pinSvg(color,extraClass){
+  var svg="<svg width='20' height='28' viewBox='0 0 20 28'>"
+    +"<path d='M10 0C4.48 0 0 4.48 0 10c0 7.5 10 18 10 18s10-10.5 10-18C20 4.48 15.52 0 10 0z' fill='"+color+"'/>"
+    +"<circle cx='10' cy='10' r='4' fill='#fff'/></svg>";
+  return L.divIcon({html:svg,className:(extraClass||"").trim(),iconSize:[20,28],iconAnchor:[10,28],popupAnchor:[0,-28]});
+}
+function starSvg(fillColor,strokeColor,hollow){
+  var pts="12,2 14.35,8.76 21.51,8.91 15.80,13.24 17.88,20.09 12,16 6.12,20.09 8.20,13.24 2.49,8.91 9.65,8.76";
+  var svg="<svg width='22' height='22' viewBox='0 0 24 24'>"
+    +"<polygon points='"+pts+"' fill='"+(hollow?"none":fillColor)+"' stroke='"+strokeColor+"' stroke-width='"+(hollow?"1.8":"1")+"' stroke-linejoin='round'/></svg>";
+  return L.divIcon({html:svg,className:"",iconSize:[22,22],iconAnchor:[11,11],popupAnchor:[0,-11]});
+}
+
+function slug(x){return x.replace(/[^A-Za-z0-9]+/g,"_");}
+
+// Program circle markers + CBCT stars
+fetch("data/programs.json?v="+DATA_VER).then(function(r){return r.json();}).then(function(dots){
+  dots.forEach(function(d){
+    var cls="prog ptype_"+slug(d.cat||"")+" scope_"+(d.scope||"both");
+    var m;
+    if(d.is_cbct){
+      var hollow=(d.fillcol==="#ffffff");
+      m=L.marker([d.lat,d.lon],{icon:starSvg(d.fillcol,d.strokecol,hollow),pane:"dots"});
+    } else {
+      m=L.circleMarker([d.lat,d.lon],{
+        pane:"dots",radius:6,
+        color:d.strokecol,weight:d.strokew,
+        fillColor:d.fillcol,fillOpacity:0.9,
+        className:cls
+      });
+    }
+    m.bindPopup(d.popup||"");
+    if(d.tip) m.bindTooltip(d.tip,{sticky:true});
+    m.addTo(map);
+    if(d.is_cbct){
+      var el=m.getElement&&m.getElement();
+      if(el) el.className+=" "+cls;
+    }
+  });
+});
+
+// Facility pins
+fetch("data/facilities.json?v="+DATA_VER).then(function(r){return r.json();}).then(function(facs){
+  facs.forEach(function(f){
+    L.marker([f.lat,f.lon],{icon:pinSvg(f.mcolor||"#888",f.certcls||""),pane:"dots"})
+      .bindPopup(f.popup||"")
+      .bindTooltip("<b>"+(f.Agency_Name||"")+"</b>",{sticky:true})
+      .addTo(map);
+  });
+});
+
+// DCR pins
+fetch("data/dcr.json?v="+DATA_VER).then(function(r){return r.json();}).then(function(rows){
+  getOrCreate("Designated Crisis Responders");
+  rows.forEach(function(d){
+    L.marker([d.lat,d.lon],{icon:pinSvg("#009e8f",""),pane:"dots"})
+      .bindPopup(d.popup||"")
+      .bindTooltip("<b>"+(d.agency||"")+"</b>",{sticky:true})
+      .addTo(getOrCreate("Designated Crisis Responders"));
+  });
+  syncGroup("Designated Crisis Responders");
+});
+
+// RNP pins
+fetch("data/rnp.json?v="+DATA_VER).then(function(r){return r.json();}).then(function(rows){
+  getOrCreate("Recovery Navigator Providers");
+  rows.forEach(function(d){
+    L.marker([d.lat,d.lon],{icon:pinSvg("#8e44ad",""),pane:"dots"})
+      .bindPopup(d.popup||"")
+      .bindTooltip("<b>"+(d.provider||"")+"</b>",{sticky:true})
+      .addTo(getOrCreate("Recovery Navigator Providers"));
+  });
+  syncGroup("Recovery Navigator Providers");
+});
+
+// Youth Navigator pins
+fetch("data/youth_navigators.json?v="+DATA_VER).then(function(r){return r.json();}).then(function(rows){
+  getOrCreate("Youth Navigator Programs");
+  rows.forEach(function(d){
+    L.marker([d.lat,d.lon],{icon:pinSvg("#f39c12",""),pane:"dots"})
+      .bindPopup(d.popup||"")
+      .bindTooltip(d.tip||"",{sticky:true})
+      .addTo(getOrCreate("Youth Navigator Programs"));
+  });
+  syncGroup("Youth Navigator Programs");
+});
+
+// Program type CSS filter
+var progStyle=document.createElement("style"); document.head.appendChild(progStyle);
+function rebuildProgCSS(){
+  var bar=document.getElementById("map-toolbar"); if(!bar) return;
+  var rules=[];
+  [].slice.call(bar.querySelectorAll("input[data-ptype]")).forEach(function(el){
+    var pt=slug(el.dataset.ptype||"");
+    if(!el.checked) rules.push(".ptype_"+pt+"{display:none!important}");
+  });
+  progStyle.textContent=rules.join(" ");
+}
+
+// Facility cert CSS filter
+var certStyle=document.createElement("style"); document.head.appendChild(certStyle);
+function rebuildCertCSS(){
+  var bar=document.getElementById("map-toolbar"); if(!bar) return;
+  var checked=[].slice.call(bar.querySelectorAll("input[data-cert]:checked")).map(function(el){return "c_"+el.dataset.cert;});
+  if(checked.length===0){ certStyle.textContent=""; return; }
+  certStyle.textContent=checked.map(function(c){return ".fac."+c+"{display:block!important}"}).join(" ");
+}
+
+// Overlay select: show/hide layer groups, show matching opacity slider
+var OPACITY_CTRL_IDS = {
+  "BH-ASO Regions":          "bhaso-opacity-ctrl",
+  "PSAP Boundaries":         "psap-opacity-ctrl",
+  "Legislative Districts":   "leg-opacity-ctrl",
+  "Regional Crisis Lines":   "rcl-opacity-ctrl",
+  "Rural/Urban Area (RUCA)": "ruca-opacity-ctrl"
+};
+var activeOverlay = null;
+function showOverlay(name){
+  if(activeOverlay && layerGroups[activeOverlay]) map.removeLayer(layerGroups[activeOverlay]);
+  Object.values(OPACITY_CTRL_IDS).forEach(function(id){
+    var el=document.getElementById(id); if(el) el.style.display="none";
+  });
+  var legRuca=document.getElementById("legend-ruca");
+  var legRcl=document.getElementById("legend-rcl");
+  if(legRuca) legRuca.style.display="none";
+  if(legRcl)  legRcl.style.display="none";
+  activeOverlay=name;
+  if(name && layerGroups[name]) map.addLayer(layerGroups[name]);
+  if(name && OPACITY_CTRL_IDS[name]){
+    var ctrl=document.getElementById(OPACITY_CTRL_IDS[name]);
+    if(ctrl) ctrl.style.display="block";
+  }
+  if(name==="Rural/Urban Area (RUCA)"   && legRuca) legRuca.style.display="block";
+  if(name==="Regional Crisis Lines"     && legRcl)  legRcl.style.display="block";
+}
+
+// Unified change handler
+document.addEventListener("change",function(e){
+  var t=e.target;
+  if(t.id==="overlay-select"){ showOverlay(t.value==="None"?null:t.value); }
+  if(t.dataset&&t.dataset.group){
+    if(t.checked){ if(layerGroups[t.dataset.group]) map.addLayer(layerGroups[t.dataset.group]); }
+    else          { if(layerGroups[t.dataset.group]) map.removeLayer(layerGroups[t.dataset.group]); }
+    if(t.dataset.group==="Population density"){
+      var leg=document.getElementById("legend-density");
+      if(leg) leg.style.display=t.checked?"block":"none";
+    }
+  }
+  if(t.dataset&&t.dataset.ptype){ rebuildProgCSS(); }
+  if(t.dataset&&t.dataset.cert){  rebuildCertCSS(); }
+  if(t.dataset&&t.dataset.covtype || t.id==="covby-mode"){ updateCovFilter(); }
+  if(t.id==="covby-selectall"){
+    [].slice.call(document.querySelectorAll("input[data-covtype]")).forEach(function(el){el.checked=t.checked;});
+    updateCovFilter();
+  }
+});
+
+// Opacity sliders
+function setGroupOpacity(name,val){
+  var grp=layerGroups[name]; if(!grp) return;
+  grp.eachLayer(function(l){ if(l.setStyle) l.setStyle({fillOpacity:val}); });
+}
+var OPACITY_SLIDER_GROUP = {};
+Object.keys(OPACITY_CTRL_IDS).forEach(function(name){
+  OPACITY_SLIDER_GROUP[OPACITY_CTRL_IDS[name].replace(/-ctrl$/,"")] = name;
+});
+document.addEventListener("input",function(e){
+  var t=e.target, v=t.value/100, gname=OPACITY_SLIDER_GROUP[t.id];
+  if(gname){ setGroupOpacity(gname,v); var el=document.getElementById(t.id+"-val"); if(el) el.textContent=t.value+"%"; }
+});
+
+// Tip tooltips (ⓘ anchors)
+var mapTip=document.getElementById("map-tip");
+document.addEventListener("DOMContentLoaded",function(){
+  [].slice.call(document.querySelectorAll(".tip-anchor")).forEach(function(a){
+    a.addEventListener("mouseenter",function(e){ mapTip.textContent=a.dataset.tip; mapTip.style.display="block"; mapTip.style.left=(e.clientX+12)+"px"; mapTip.style.top=(e.clientY+12)+"px"; });
+    a.addEventListener("mousemove",function(e){ mapTip.style.left=(e.clientX+12)+"px"; mapTip.style.top=(e.clientY+12)+"px"; });
+    a.addEventListener("mouseleave",function(){ mapTip.style.display="none"; });
+  });
+});
+
+</script>
+<div id='public-attribution' style='position:fixed;bottom:2px;left:50%;transform:translateX(-50%);z-index:800;pointer-events:none;background:rgba(255,255,255,0.88);border:1px solid #ddd;border-radius:4px;padding:4px 12px;font-size:12px;line-height:1.35;color:#444;font-family:sans-serif;max-width:92vw;text-align:center;'><div style='font-weight:600;'>2026 WA Field-Based Mobile Crisis &amp; Co-Response Program Survey &mdash; BHCore, UW School of Social Work</div><div style='margin-top:2px;'>69 of 78 co-response programs (88%) and 41 of 52 mobile crisis programs (79%) responded to the 2026 Landscape Survey as of 10/20/2026 — 110 of 130 programs statewide (85%). Programs that did not respond are shown with hollow markers using confirmed program-level details where available.</div><a href='mailto:bhcore@uw.edu' style='color:#2166ac;pointer-events:auto;'>bhcore@uw.edu</a></div></body>
 </html>
