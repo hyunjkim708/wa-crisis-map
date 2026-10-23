@@ -91,7 +91,7 @@ function syncOverlay(name){
   if(sel && sel.value===name && layerGroups[name] && !map.hasLayer(layerGroups[name]))
     map.addLayer(layerGroups[name]);
 }
-var DATA_VER="20261022080428";var PROG_COLORS={"LE co-response":"#2166ac","Fire/EMS co-response":"#d7301f","Alternative / community":"#6a51a3","MRRCT":"#1a9850","MRSS - Youth":"#f16913"};var RUCA_LEVELS=["Small town/rural","Large town","Suburban","Urban"];var RUCA_COLORS=["#8c510a","#dfc27d","#80cdc1","#018571"];var RCL_LEVELS=["Volunteers of America Western Washington","Crisis Connections","Olympic Health & Recovery Services","Frontier Behavioral Health"];var RCL_COLORS=["#f4a27b","#80cdc1","#9b72b0","#7bafd4"];
+var DATA_VER="20261021";var PROG_COLORS={"LE co-response":"#2166ac","Fire/EMS co-response":"#d7301f","Alternative / community":"#6a51a3","MRRCT":"#1a9850","MRSS - Youth":"#f16913"};var RUCA_LEVELS=["Small town/rural","Large town","Suburban","Urban"];var RUCA_COLORS=["#8c510a","#dfc27d","#80cdc1","#018571"];var RCL_LEVELS=["Volunteers of America Western Washington","Crisis Connections","Olympic Health & Recovery Services","Frontier Behavioral Health"];var RCL_COLORS=["#f4a27b","#80cdc1","#9b72b0","#7bafd4"];
 function ylOrRd(t){
   var c=[[255,255,204],[255,237,160],[254,217,118],[254,178,76],[253,141,60],[252,78,42],[227,26,28],[189,0,38],[128,0,38]];
   var i=Math.min(Math.floor(t*(c.length-1)),c.length-2),f=t*(c.length-1)-i;
